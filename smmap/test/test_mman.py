@@ -1,8 +1,11 @@
 from lib import TestBase, FileCreator
 
 from smmap.mman import *
-from smmap.mman import MappedRegion
+from smmap.mman import align_to_page
 from smmap.mman import Window
+from smmap.mman import MappedRegion
+from smmap.mman import MappedRegionList
+from smmap.mman import Cursor
 
 import sys
 import mmap
@@ -56,11 +59,10 @@ class TestMMan(TestBase):
 		wc.align()
 		assert wc.ofs == 0 and wc.size == mmap.PAGESIZE*2
 		
-	
 	def test_region(self):
 		fc = FileCreator(self._window_test_size, "window_test")
 		half_size = fc.size / 2
-		rofs = 4000
+		rofs = align_to_page(4200, False)
 		rfull = MappedRegion(fc.path, 0, fc.size)
 		rhalfofs = MappedRegion(fc.path, rofs, fc.size)
 		rhalfsize = MappedRegion(fc.path, 0, half_size)
@@ -76,10 +78,20 @@ class TestMMan(TestBase):
 		assert not rfull.includes_ofs(-1) and not rfull.includes_ofs(sys.maxint)
 		assert rhalfofs.includes_ofs(rofs) and not rhalfofs.includes_ofs(0)
 		
+		# auto-refcount
+		assert rfull.client_count() == 1
+		rfull2 = rfull
+		assert rfull.client_count() == 2
+		
 		# window constructor
 		w = Window.from_region(rfull)
 		assert w.ofs == rfull.ofs_begin() and w.ofs_end() == rfull.ofs_end()
 		
+	def test_region_list(self):
+		pass
+		
+	def test_cursor(self):
+		pass
 		
 	def test_basics(self):
 		pass

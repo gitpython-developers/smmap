@@ -7,6 +7,7 @@ import sys
 import mmap
 
 from mmap import PAGESIZE
+from sys import getrefcount
 
 #{ Utilities
 
@@ -71,7 +72,6 @@ class MappedRegion(object):
 	__slots__ = [
 					'_b'	, 	# beginning of mapping
 					'_mf',	# mapped memory chunk (as returned by mmap)
-					'_nc',	# number of clients using this region
 					'_uc',	# total amount of usages
 					'_ms'	# actual size of the mapping
 				]
@@ -90,24 +90,24 @@ class MappedRegion(object):
 			allocated the the size automatically adjusted
 		:raise Exception: if no memory can be allocated"""
 		self._b = ofs
-		self._nc = 0
 		self._uc = 0
 		
 		fd = os.open(path, os.O_RDONLY|getattr(os, 'O_BINARY', 0))
 		try:
 			kwargs = dict(access=mmap.ACCESS_READ, offset=ofs)
 			corrected_size = size
+			sizeofs = ofs
 			if self._need_compat_layer:
 				del(kwargs['offset'])
 				corrected_size += ofs
+				sizeofs = 0
 			# END handle python not supporting offset ! Arg
 			
 			# have to correct size, otherwise (instead of the c version) it will 
 			# bark that the size is too large ... many extra file accesses because
 			# if this ... argh !
-			self._mf = mmap.mmap(fd, min(os.fstat(fd).st_size, corrected_size), **kwargs)
+			self._mf = mmap.mmap(fd, min(os.fstat(fd).st_size - sizeofs, corrected_size - sizeofs), **kwargs)
 			
-			print len(self._mf)
 			if self._need_compat_layer:
 				self._mfb = buffer(self._mf, ofs, size)
 			#END handle buffer wrapping
@@ -133,7 +133,8 @@ class MappedRegion(object):
 		
 	def client_count(self):
 		""":return: number of clients currently using this region"""
-		return self._nc
+		# -1: self on stack, -1 self in this method, -1 self in getrefcount
+		return getrefcount(self)-3
 		
 	def adjust_client_count(self, ofs):
 		"""Adjust the client count by the given positive or negative offset"""
@@ -155,6 +156,15 @@ class MappedRegion(object):
 		def ofs_end(self):
 			return len(self._mf)
 	#END handle compat layer
+	
+
+class Cursor(object):
+	"""Pointer into the mapped region of the memory manager, keeping the current window 
+	alive until it is destroyed"""
+	
+
+class MappedRegionList(list):
+	"""List of MappedRegion instances with specific functionality"""
 	
 
 class MappedMemoryManager(object):
