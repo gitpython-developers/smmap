@@ -75,8 +75,8 @@ class MappedRegion(object):
 					'_b'	, 	# beginning of mapping
 					'_mf',	# mapped memory chunk (as returned by mmap)
 					'_uc',	# total amount of usages
-					'_ms',	# actual size of the mapping
-					'__weakref__'	# allow weak references to a region
+					'_ms'	# actual size of the mapping
+					'__weakref__'
 				]
 	_need_compat_layer = sys.version_info[1] < 6
 	
@@ -139,17 +139,13 @@ class MappedRegion(object):
 		# -1: self on stack, -1 self in this method, -1 self in getrefcount
 		return getrefcount(self)-3
 		
-	def adjust_client_count(self, ofs):
-		"""Adjust the client count by the given positive or negative offset"""
-		self._nc += ofs
-		
 	def usage_count(self):
 		""":return: amount of usages so far"""
 		return self._uc
 		
-	def adjust_usage_count(self, ofs):
+	def increment_usage_count(self):
 		"""Adjust the usage count by the given positive or negative offset"""
-		self._uc += ofs
+		self._uc += 1
 		
 	# re-define all methods which need offset adjustments in compatibility mode
 	if _need_compat_layer:

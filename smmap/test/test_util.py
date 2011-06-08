@@ -75,6 +75,11 @@ class TestMMan(TestBase):
 		rfull2 = rfull
 		assert rfull.client_count() == 2
 		
+		# usage
+		assert rfull.usage_count() == 0
+		rfull.increment_usage_count()
+		assert rfull.usage_count() == 1
+		
 		# window constructor
 		w = MemoryWindow.from_region(rfull)
 		assert w.ofs == rfull.ofs_begin() and w.ofs_end() == rfull.ofs_end()
