@@ -5,6 +5,7 @@ from util import (
 					MappedRegionList,
 				)
 
+from exc import RegionCollectionError
 from weakref import proxy
 
 __all__ = ["MappedMemoryManager"]
@@ -45,7 +46,7 @@ class MemoryCursor(object):
 			num_clients = self._rlist.client_count() - 2
 			if num_clients == 0 and len(self._rlist) == 0:
 				# Free all resources associated with the mapped file
-				self._manager._files.pop(self._rlist.path())
+				self._manager._fdict.pop(self._rlist.path())
 			#END remove regions list from manager
 		#END handle regions
 		
@@ -82,6 +83,7 @@ class MemoryCursor(object):
 			This is not the case if the mapping failed becaues we reached the end of the file
 		:note: The size actually mapped may be smaller than the given size. If that is the case,
 			either the file has reached its end, or the map was created between two existing regions"""
+		
 			
 	def unuse_region(self):
 		"""Unuse the ucrrent region. Does nothing if we have no current region
@@ -146,5 +148,19 @@ class MappedMemoryManager(object):
 		a safe amount of memory already, which would possibly cause memory allocations to fail as our address
 		space is full."""
 		
-	__slots__ = tuple()
-	
+	__slots__ = [
+					'_fdict', 			# mapping of path -> MappedRegionList
+					'_max_window_size', 	# maximum size of a window
+					'_max_memory_size',	# maximum amount ofmemory we may allocate
+					'_max_handles',		# maximum amount of handles to keep open
+					'_memory_size',		# currently allocated memory size
+					'_handle_count',		# amount of currently allocated file handles
+				]
+				
+	def _collect_one_lru_region(self, size):
+		"""Unmap the region which was least-recently used and has no client
+		:param size: size of the region we want to map next (assuming its not already mapped partially or full
+			if 0, we try to free any available region
+		:raise RegionCollectionError:
+		:todo: implement a case where all unusued regions are discarded efficiently. Currently its only brute force"""
+		
