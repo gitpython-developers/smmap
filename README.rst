@@ -15,12 +15,13 @@ For convenience, a stream class is provided which hides the usage of the memory 
 ************
 LIMITATIONS
 ************
-The access is readonly by design.
+* The access is readonly by design.
+* In python below 2.6, memory maps will be created in compatability mode which works, but creates inefficient memory maps as they always start at offset 0.
 
 ************
 REQUIREMENTS
 ************
-* Python 2.4 or higher
+* runs Python 2.4 or higher, but needs Python 2.6 or higher to run properly as it needs the offset parameter of the mmap.mmap function.
 
 *******
 Install
