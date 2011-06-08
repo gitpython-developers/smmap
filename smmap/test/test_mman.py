@@ -88,7 +88,12 @@ class TestMMan(TestBase):
 		assert w.ofs == rfull.ofs_begin() and w.ofs_end() == rfull.ofs_end()
 		
 	def test_region_list(self):
-		pass
+		fc = FileCreator(100, "sample_file")
+		ml = MappedRegionList(fc.path)
+		
+		assert len(ml) == 0
+		assert ml.path() == fc.path
+		assert ml.file_size() == fc.size
 		
 	def test_cursor(self):
 		pass

@@ -158,15 +158,37 @@ class MappedRegion(object):
 	#END handle compat layer
 	
 
+class MappedRegionList(list):
+	"""List of MappedRegion instances associating a path with a list of regions."""
+	__slots__ = (
+				'_path', 		# path which is mapped by all our regions
+				'_file_size'		# total size of the file we map
+				)
+	
+	def __new__(cls, path):
+		return super(MappedRegionList, cls).__new__(cls)
+	
+	def __init__(self, path):
+		self._path = path
+		self._file_size = None
+		
+	def path(self):
+		""":return: path to file whose regions we manage"""
+		return self._path
+		
+	def file_size(self):
+		""":return: size of file we manager"""
+		if self._file_size is None:
+			self._file_size = os.stat(self._path).st_size
+		#END update file size
+		return self._file_size
+	
+
 class Cursor(object):
 	"""Pointer into the mapped region of the memory manager, keeping the current window 
 	alive until it is destroyed"""
 	
-
-class MappedRegionList(list):
-	"""List of MappedRegion instances with specific functionality"""
 	
-
 class MappedMemoryManager(object):
 	"""Maintains a list of ranges of mapped memory regions in one or more files and allows to easily 
 	obtain additional regions assuring there is no overlap.
