@@ -49,7 +49,7 @@ class TestBase(TestCase):
 	"""Foundation used by all tests"""
 	
 	#{ Configuration
-	
+	k_window_test_size = 1000 * 1000 * 8 + 5195
 	#} END configuration
 	
 	#{ Overrides
