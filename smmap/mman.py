@@ -3,6 +3,7 @@
 __all__ = ["MappedMemoryManager"]
 
 import os
+import sys
 import mmap
 
 from mmap import PAGESIZE
@@ -64,16 +65,22 @@ class Window(object):
 		self.size = min(self.size + (window.ofs - self.ofs_end()), max_size)
 
 
-class Region(object):
+class MappedRegion(object):
 	"""Defines a mapped region of memory, aligned to pagesizes
 	:note: deallocates used region automatically on destruction"""
-	__slots__ = (
+	__slots__ = [
 					'_b'	, 	# beginning of mapping
 					'_mf',	# mapped memory chunk (as returned by mmap)
 					'_nc',	# number of clients using this region
-					'_uc'	# total amount of usages
-				)
+					'_uc',	# total amount of usages
+					'_ms'	# actual size of the mapping
+				]
+	_need_compat_layer = sys.version_info[1] < 6
 	
+	if _need_compat_layer:
+		__slots__.append('_mfb')		# mapped memory buffer to provide offset
+	#END handle additional slot
+		
 	
 	def __init__(self, path, ofs, size):
 		"""Initialize a region, allocate the memory map
@@ -88,10 +95,66 @@ class Region(object):
 		
 		fd = os.open(path, os.O_RDONLY|getattr(os, 'O_BINARY', 0))
 		try:
-			self._mf = mmap.mmap(fd, size, access=mmap.ACCESS_READ, offset=ofs)
+			kwargs = dict(access=mmap.ACCESS_READ, offset=ofs)
+			corrected_size = size
+			if self._need_compat_layer:
+				del(kwargs['offset'])
+				corrected_size += ofs
+			# END handle python not supporting offset ! Arg
+			
+			# have to correct size, otherwise (instead of the c version) it will 
+			# bark that the size is too large ... many extra file accesses because
+			# if this ... argh !
+			self._mf = mmap.mmap(fd, min(os.fstat(fd).st_size, corrected_size), **kwargs)
+			
+			print len(self._mf)
+			if self._need_compat_layer:
+				self._mfb = buffer(self._mf, ofs, size)
+			#END handle buffer wrapping
 		finally:
 			os.close(fd)
 		#END close file handle
+		
+	def ofs_begin(self):
+		""":return: absolute byte offset to the first byte of the mapping"""
+		return self._b
+		
+	def size(self):
+		""":return: total size of the mapped region in bytes"""
+		return len(self._mf)
+		
+	def ofs_end(self):
+		""":return: Absolute offset to one byte beyond the mapping into the file"""
+		return self._b + self.size()
+		
+	def includes_ofs(self, ofs):
+		""":return: True if the given offset can be read in our mapped region"""
+		return (ofs >= self.ofs_begin()) and (ofs <= self.ofs_end())
+		
+	def client_count(self):
+		""":return: number of clients currently using this region"""
+		return self._nc
+		
+	def adjust_client_count(self, ofs):
+		"""Adjust the client count by the given positive or negative offset"""
+		self._nc += ofs
+		
+	def usage_count(self):
+		""":return: amount of usages so far"""
+		return self._uc
+		
+	def adjust_usage_count(self, ofs):
+		"""Adjust the usage count by the given positive or negative offset"""
+		self._uc += ofs
+		
+	# re-define all methods which need offset adjustments in compatibility mode
+	if _need_compat_layer:
+		def size(self):
+			return len(self._mf) - self._b
+			
+		def ofs_end(self):
+			return len(self._mf)
+	#END handle compat layer
 	
 
 class MappedMemoryManager(object):

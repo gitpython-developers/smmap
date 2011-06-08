@@ -1,7 +1,7 @@
 from lib import TestBase, FileCreator
 
 from smmap.mman import *
-from smmap.mman import Region
+from smmap.mman import MappedRegion
 from smmap.mman import Window
 
 import sys
@@ -59,12 +59,27 @@ class TestMMan(TestBase):
 	
 	def test_region(self):
 		fc = FileCreator(self._window_test_size, "window_test")
-		rfull = Region(fc.path, 0, fc.size)
+		half_size = fc.size / 2
+		rofs = 4000
+		rfull = MappedRegion(fc.path, 0, fc.size)
+		rhalfofs = MappedRegion(fc.path, rofs, fc.size)
+		rhalfsize = MappedRegion(fc.path, 0, half_size)
 		
+		# offsets
+		assert rfull.ofs_begin() == 0 and rfull.size() == fc.size
+		assert rfull.ofs_end() == fc.size	# if this method works, it works always
 		
+		assert rhalfofs.ofs_begin() == rofs and rhalfofs.size() == fc.size - rofs
+		assert rhalfsize.ofs_begin() == 0 and rhalfsize.size() == half_size
 		
-		Window.from_region # todo
-		pass
+		assert rfull.includes_ofs(0) and rfull.includes_ofs(fc.size-1) and rfull.includes_ofs(half_size)
+		assert not rfull.includes_ofs(-1) and not rfull.includes_ofs(sys.maxint)
+		assert rhalfofs.includes_ofs(rofs) and not rhalfofs.includes_ofs(0)
+		
+		# window constructor
+		w = Window.from_region(rfull)
+		assert w.ofs == rfull.ofs_begin() and w.ofs_end() == rfull.ofs_end()
+		
 		
 	def test_basics(self):
 		pass
