@@ -62,7 +62,7 @@ class TestBuf(TestBase):
 		# exagerate the manager's overhead, but measure the buffer overhead
 		# We do it once with an optimal setting, and with a worse manager which 
 		# will produce small mappings only !
-		max_num_accesses = 1000
+		max_num_accesses = 400
 		for manager, man_id in ( (man_optimal, 'optimal'), 
 								(man_worst_case, 'worst case')):
 			buf = MappedMemoryBuffer(manager.make_cursor(fc.path))

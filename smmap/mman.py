@@ -29,6 +29,11 @@ class MemoryCursor(object):
 					'_size'		# maximum size we should provide
 				)
 	
+	#{ Configuration
+	MemoryWindowCls = MemoryWindow
+	MappedRegionCls = MappedRegion
+	#} END configuration
+	
 	def __init__(self, manager = None, regions = None):
 		self._manager = manager
 		self._rlist = regions
@@ -129,9 +134,9 @@ class MemoryCursor(object):
 			#END while bisecting
 			
 			if existing_region is None:
-				left = MemoryWindow(0, 0)
-				mid = MemoryWindow(offset, size)
-				right = MemoryWindow(self.file_size(), 0)
+				left = self.MemoryWindowCls(0, 0)
+				mid = self.MemoryWindowCls(offset, size)
+				right = self.MemoryWindowCls(self.file_size(), 0)
 				
 				# we want to honor the max memory size, and assure we have anough
 				# memory available
@@ -162,13 +167,13 @@ class MemoryCursor(object):
 				# possible mapping
 				if insert_pos == 0:
 					if len_regions:
-						right = MemoryWindow.from_region(a[insert_pos])
+						right = self.MemoryWindowCls.from_region(a[insert_pos])
 					#END adjust right side 
 				else:
 					if insert_pos != len_regions:
-						right = MemoryWindow.from_region(a[insert_pos])
+						right = self.MemoryWindowCls.from_region(a[insert_pos])
 					# END adjust right window
-					left = MemoryWindow.from_region(a[insert_pos - 1])
+					left = self.MemoryWindowCls.from_region(a[insert_pos - 1])
 				#END adjust surrounding windows
 				
 				mid.extend_left_to(left, window_size)
@@ -185,7 +190,7 @@ class MemoryCursor(object):
 					if man._handle_count >= man._max_handle_count:
 						raise Exception
 					#END assert own imposed max file handles
-					self._region = MappedRegion(a.path(), mid.ofs, mid.size, flags)
+					self._region = self.MappedRegionCls(a.path(), mid.ofs, mid.size, flags)
 				except Exception:
 					# apparently we are out of system resources or hit a limit
 					# As many more operations are likely to fail in that condition (
@@ -302,6 +307,10 @@ class MappedMemoryManager(object):
 					'_handle_count',		# amount of currently allocated file handles
 				]
 				
+	#{ Configuration
+	MappedRegionListCls = MappedRegionList
+	#} END configuration
+				
 	_MB_in_bytes = 1024 * 1024
 				
 	def __init__(self, window_size = 0, max_memory_size = 0, max_open_handles = sys.maxint):
@@ -378,7 +387,7 @@ class MappedMemoryManager(object):
 		""":return: a cursor pointing to the given path. It can be used to map new regions of the file into memory"""
 		regions = self._fdict.get(path)
 		if regions is None:
-			regions = MappedRegionList(path)
+			regions = self.MappedRegionListCls(path)
 			self._fdict[path] = regions
 		# END obtain region for path
 		return MemoryCursor(self, regions)
