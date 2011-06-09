@@ -78,10 +78,12 @@ class MemoryCursor(object):
 		self._destroy()
 		self._copy_from(rhs)
 		
-	def use_region(self, offset, size, _is_recursive=False):
+	def use_region(self, offset, size, flags = 0, _is_recursive=False):
 		"""Assure we point to a window which allows access to the given offset into the file
 		:param offset: absolute offset in bytes into the file
 		:param size: amount of bytes to map
+		:param flags: additional flags to be given to os.open in case a file handle is initially opened
+			for mapping. Has no effect if a region can actually be reused.
 		:return: this instance - it should be queried for whether it points to a valid memory region.
 			This is not the case if the mapping failed becaues we reached the end of the file
 		:note: The size actually mapped may be smaller than the given size. If that is the case,
@@ -106,6 +108,8 @@ class MemoryCursor(object):
 				return self
 			# END handle offset too large
 			
+			# bisect to find an existing region. The c++ implementation cannot 
+			# do that as it uses a linked list for regions.
 			existing_region = None
 			a = self._rlist
 			lo = 0
@@ -181,7 +185,7 @@ class MemoryCursor(object):
 					if man._handle_count >= man._max_handle_count:
 						raise Exception
 					#END assert own imposed max file handles
-					self._region = MappedRegion(a.path(), mid.ofs, mid.size)
+					self._region = MappedRegion(a.path(), mid.ofs, mid.size, flags)
 				except Exception:
 					# apparently we are out of system resources or hit a limit
 					# As many more operations are likely to fail in that condition (
@@ -195,7 +199,7 @@ class MemoryCursor(object):
 						raise
 					#END handle existing recursion
 					man._collect_lru_region(0)
-					return self.use_region(offset, size, True) 
+					return self.use_region(offset, size, flags, True) 
 				#END handle exceptions
 				
 				man._handle_count += 1
