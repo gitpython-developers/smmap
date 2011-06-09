@@ -116,7 +116,7 @@ class MappedRegion(object):
 			# have to correct size, otherwise (instead of the c version) it will 
 			# bark that the size is too large ... many extra file accesses because
 			# if this ... argh !
-			self._mf = mmap.mmap(fd, min(os.fstat(fd).st_size - sizeofs, corrected_size - sizeofs), **kwargs)
+			self._mf = mmap.mmap(fd, min(os.fstat(fd).st_size - sizeofs, corrected_size), **kwargs)
 			
 			if self._need_compat_layer:
 				self._mfb = buffer(self._mf, ofs, size)
@@ -124,6 +124,11 @@ class MappedRegion(object):
 		finally:
 			os.close(fd)
 		#END close file handle
+		
+	def __repr__(self):
+		return "MappedRegion<%i, %i>" % (self._b, self.size())
+		
+	#{ Interface
 		
 	def buffer(self):
 		""":return: a sliceable buffer which can be used to access the mapped memory"""
@@ -143,7 +148,7 @@ class MappedRegion(object):
 		
 	def includes_ofs(self, ofs):
 		""":return: True if the given offset can be read in our mapped region"""
-		return (ofs >= self.ofs_begin()) and (ofs <= self.ofs_end())
+		return self.ofs_begin() <= ofs < self.ofs_end()
 		
 	def client_count(self):
 		""":return: number of clients currently using this region"""
@@ -169,6 +174,8 @@ class MappedRegion(object):
 		def buffer(self):
 			return self._mfb
 	#END handle compat layer
+	
+	#} END interface
 	
 
 class MappedRegionList(list):

@@ -244,7 +244,7 @@ class MemoryCursor(object):
 		:note: always False if the cursor does not point to a valid region"""
 		if self._region is None:
 			return False
-		return (self.ofs_begin() <= ofs) and (ofs < self.ofs_end())
+		return self.ofs_begin() <= ofs < self.ofs_end()
 		
 	def file_size(self):
 		""":return: size of the underlying file"""
@@ -326,7 +326,7 @@ class MappedMemoryManager(object):
 			for regions in self._fdict.itervalues():
 				for region in regions:
 					# check client count - consider that we keep one reference ourselves !
-					if (region.client_count()-1 == 0 and 
+					if (region.client_count()-2 == 0 and 
 						(lru_region is None or region.usage_count() < lru_region.usage_count())):
 						lru_region = region
 						lru_list = regions

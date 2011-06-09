@@ -138,15 +138,14 @@ class TestMMan(TestBase):
 		st = time()
 		
 		while num_random_accesses:
-			num_random_accesses += 1
+			num_random_accesses -= 1
 			base_offset = randint(0, fc.size - 1)
 			
 			# precondition
 			assert man.max_mapped_memory_size() >= man.mapped_memory_size()
 			assert man.max_file_handles() >= man.num_file_handles()
-			
 			assert c.use_region(base_offset, size).is_valid()
-			assert c.buffer()[:] == data[base_offset:base_offset+size]
+			assert c.buffer()[:] == data[base_offset:base_offset+c.size()]
 			memory_read += c.size()
 			
 			assert c.includes_ofs(base_offset)
