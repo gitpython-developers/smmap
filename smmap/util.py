@@ -3,7 +3,7 @@ import os
 import sys
 import mmap
 
-from mmap import PAGESIZE
+from mmap import PAGESIZE, mmap, ACCESS_READ
 from sys import getrefcount
 
 __all__ = [	"align_to_page", "is_64_bit",
@@ -48,7 +48,7 @@ class MemoryWindow(object):
 	@classmethod
 	def from_region(cls, region):
 		""":return: new window from a region"""
-		return cls(region.ofs_begin(), region.size())
+		return cls(region._b, region._size)
 
 	def ofs_end(self):
 		return self.ofs + self.size
@@ -83,6 +83,7 @@ class MappedRegion(object):
 					'_b'	, 	# beginning of mapping
 					'_mf',	# mapped memory chunk (as returned by mmap)
 					'_uc',	# total amount of usages
+					'_size', # cached size of our memory map
 					'__weakref__'
 				]
 	_need_compat_layer = sys.version_info[1] < 6
@@ -100,11 +101,12 @@ class MappedRegion(object):
 			allocated the the size automatically adjusted
 		:raise Exception: if no memory can be allocated"""
 		self._b = ofs
+		self._size = 0
 		self._uc = 0
 		
 		fd = os.open(path, os.O_RDONLY|getattr(os, 'O_BINARY', 0))
 		try:
-			kwargs = dict(access=mmap.ACCESS_READ, offset=ofs)
+			kwargs = dict(access=ACCESS_READ, offset=ofs)
 			corrected_size = size
 			sizeofs = ofs
 			if self._need_compat_layer:
@@ -116,7 +118,8 @@ class MappedRegion(object):
 			# have to correct size, otherwise (instead of the c version) it will 
 			# bark that the size is too large ... many extra file accesses because
 			# if this ... argh !
-			self._mf = mmap.mmap(fd, min(os.fstat(fd).st_size - sizeofs, corrected_size), **kwargs)
+			self._mf = mmap(fd, min(os.fstat(fd).st_size - sizeofs, corrected_size), **kwargs)
+			self._size = len(self._mf)
 			
 			if self._need_compat_layer:
 				self._mfb = buffer(self._mf, ofs, size)
@@ -126,7 +129,7 @@ class MappedRegion(object):
 		#END close file handle
 		
 	def __repr__(self):
-		return "MappedRegion<%i, %i>" % (self._b, self.size())
+		return "MappedRegion<%i, %i>" % (self._b, self._size)
 		
 	#{ Interface
 		
@@ -140,15 +143,15 @@ class MappedRegion(object):
 		
 	def size(self):
 		""":return: total size of the mapped region in bytes"""
-		return len(self._mf)
+		return self._size
 		
 	def ofs_end(self):
 		""":return: Absolute offset to one byte beyond the mapping into the file"""
-		return self._b + self.size()
+		return self._b + self._size
 		
 	def includes_ofs(self, ofs):
 		""":return: True if the given offset can be read in our mapped region"""
-		return self.ofs_begin() <= ofs < self.ofs_end()
+		return self._b <= ofs < self._b + self._size
 		
 	def client_count(self):
 		""":return: number of clients currently using this region"""

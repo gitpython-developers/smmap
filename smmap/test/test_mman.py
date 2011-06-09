@@ -127,9 +127,6 @@ class TestMMan(TestBase):
 		# remove mapped regions if we have to
 		assert man.num_file_handles() == 2
 		
-		# an offset as large as the size doesn't work !
-		assert not c.use_region(fc.size, size).is_valid() 
-
 		# iterate through the windows, verify data contents
 		# this will trigger map collection after a while
 		max_random_accesses = 15000
@@ -137,23 +134,32 @@ class TestMMan(TestBase):
 		memory_read = 0
 		st = time()
 		
+		# cache everything to get some more performance
+		includes_ofs = c.includes_ofs
+		max_mapped_memory_size = man.max_mapped_memory_size()
+		max_file_handles = man.max_file_handles()
+		mapped_memory_size = man.mapped_memory_size
+		num_file_handles = man.num_file_handles
 		while num_random_accesses:
 			num_random_accesses -= 1
 			base_offset = randint(0, fc.size - 1)
 			
 			# precondition
-			assert man.max_mapped_memory_size() >= man.mapped_memory_size()
-			assert man.max_file_handles() >= man.num_file_handles()
+			assert max_mapped_memory_size >= mapped_memory_size()
+			assert max_file_handles >= num_file_handles()
 			assert c.use_region(base_offset, size).is_valid()
-			assert c.buffer()[:] == data[base_offset:base_offset+c.size()]
-			memory_read += c.size()
+			csize = c.size()
+			assert c.buffer()[:] == data[base_offset:base_offset+csize]
+			memory_read += csize
 			
-			assert c.includes_ofs(base_offset)
-			assert c.includes_ofs(base_offset+c.size()-1)
-			assert not c.includes_ofs(base_offset+c.size())
+			assert includes_ofs(base_offset)
+			assert includes_ofs(base_offset+csize-1)
+			assert not includes_ofs(base_offset+csize)
 		# END while we should do an access
 		elapsed = time() - st
 		mb = 1000 * 1000
-		sys.stderr.write("Read %i mb of memory with %i random accesses in %f s(%f mb/s)\n" 
+		sys.stderr.write("Read %i mb of memory with %i random accesses in %fs (%f mb/s)\n" 
 						% (memory_read/mb, max_random_accesses, elapsed, (memory_read/mb)/elapsed))
 		
+		# an offset as large as the size doesn't work !
+		assert not c.use_region(fc.size, size).is_valid() 

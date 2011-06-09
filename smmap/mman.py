@@ -99,18 +99,30 @@ class MemoryCursor(object):
 		# END check existing region
 		
 		if need_region:
+			window_size = man._window_size
+			
 			# abort on offsets beyond our mapped file's size - currently we are invalid
 			if offset >= self.file_size():
 				return self
 			# END handle offset too large
 			
 			existing_region = None
-			for region in self._rlist:
-				if region.includes_ofs(offset):
-					existing_region = region
-					break
-				#END handle existing region
-			#END for each existing region
+			a = self._rlist
+			lo = 0
+			hi = len(a)
+			while lo < hi:
+				mid = (lo+hi)//2
+				ofs = a[mid]._b
+				if ofs <= offset:
+					if a[mid].includes_ofs(offset):
+						existing_region = a[mid]
+						break
+					#END have region
+					lo = mid+1
+				else:
+					hi = mid
+				#END handle position
+			#END while bisecting
 			
 			if existing_region is None:
 				left = MemoryWindow(0, 0)
@@ -119,20 +131,23 @@ class MemoryCursor(object):
 				
 				# we want to honor the max memory size, and assure we have anough
 				# memory available
-				man._collect_lru_region(man.window_size())
+				# Save calls !
+				if self._manager._memory_size + window_size > self._manager._max_memory_size:
+					man._collect_lru_region(window_size)
+				#END handle collection
 				
 				# we assume the list remains sorted by offset
 				insert_pos = 0
-				len_regions = len(self._rlist)
+				len_regions = len(a)
 				if len_regions == 1:
-					if self._rlist[0].ofs_begin() <= offset:
+					if a[0]._b <= offset:
 						insert_pos = 1
 					#END maintain sort
 				else:
 					# find insert position
 					insert_pos = len_regions
-					for i, region in enumerate(self._rlist):
-						if region.ofs_begin() > offset:
+					for i, region in enumerate(a):
+						if region._b > offset:
 							insert_pos = i
 							break
 						#END if insert position is correct
@@ -143,17 +158,17 @@ class MemoryCursor(object):
 				# possible mapping
 				if insert_pos == 0:
 					if len_regions:
-						right = MemoryWindow.from_region(self._rlist[insert_pos])
+						right = MemoryWindow.from_region(a[insert_pos])
 					#END adjust right side 
 				else:
 					if insert_pos != len_regions:
-						right = MemoryWindow.from_region(self._rlist[insert_pos])
+						right = MemoryWindow.from_region(a[insert_pos])
 					# END adjust right window
-					left = MemoryWindow.from_region(self._rlist[insert_pos - 1])
+					left = MemoryWindow.from_region(a[insert_pos - 1])
 				#END adjust surrounding windows
 				
-				mid.extend_left_to(left, man._window_size)
-				mid.extend_right_to(right, man._window_size)
+				mid.extend_left_to(left, window_size)
+				mid.extend_right_to(right, window_size)
 				mid.align()
 				
 				# it can happen that we align beyond the end of the file
@@ -166,7 +181,7 @@ class MemoryCursor(object):
 					if man._handle_count >= man._max_handle_count:
 						raise Exception
 					#END assert own imposed max file handles
-					self._region = MappedRegion(self._rlist.path(), mid.ofs, mid.size)
+					self._region = MappedRegion(a.path(), mid.ofs, mid.size)
 				except Exception:
 					# apparently we are out of system resources or hit a limit
 					# As many more operations are likely to fail in that condition (
@@ -185,14 +200,14 @@ class MemoryCursor(object):
 				
 				man._handle_count += 1
 				man._memory_size += self._region.size()
-				self._rlist.insert(insert_pos, self._region)
+				a.insert(insert_pos, self._region)
 			else:
 				self._region = existing_region
 			#END need region handling
 		#END handle acquire region
 		
 		self._region.increment_usage_count()
-		self._ofs = offset - self._region.ofs_begin()
+		self._ofs = offset - self._region._b
 		self._size = min(size, self._region.ofs_end() - offset)
 		
 		return self
@@ -220,12 +235,12 @@ class MemoryCursor(object):
 		
 	def ofs_begin(self):
 		""":return: offset to the first byte pointed to by our cursor"""
-		return self._region.ofs_begin() + self._ofs
+		return self._region._b + self._ofs
 		
 	def ofs_end(self):
 		""":return: offset to one past the last available byte"""
 		# unroll method calls for performance !
-		return self._region.ofs_begin() + self._ofs + self._size
+		return self._region._b + self._ofs + self._size
 		
 	def size(self):
 		""":return: amount of bytes we point to"""
@@ -241,10 +256,9 @@ class MemoryCursor(object):
 	def includes_ofs(self, ofs):
 		""":return: True if the given absolute offset is contained in the cursors 
 			current region
-		:note: always False if the cursor does not point to a valid region"""
-		if self._region is None:
-			return False
-		return self.ofs_begin() <= ofs < self.ofs_end()
+		:note: cursor must be valid for this to work"""
+		# unroll methods
+		return (self._region._b + self._ofs) <= ofs < (self._region._b + self._ofs + self._size)
 		
 	def file_size(self):
 		""":return: size of the underlying file"""
@@ -327,7 +341,7 @@ class MappedMemoryManager(object):
 				for region in regions:
 					# check client count - consider that we keep one reference ourselves !
 					if (region.client_count()-2 == 0 and 
-						(lru_region is None or region.usage_count() < lru_region.usage_count())):
+						(lru_region is None or region._uc < lru_region._uc)):
 						lru_region = region
 						lru_list = regions
 					# END update lru_region
