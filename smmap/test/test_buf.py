@@ -7,24 +7,24 @@ from random import randint
 from time import time
 import sys
 
-class TestBuffer(MappedMemoryBuffer):
-	#{ Configuration
-	manager = MappedMemoryManager()
-	#} END configuration
-	
+
+man_optimal = MappedMemoryManager()
+man_worst_case = MappedMemoryManager(	window_size=TestBase.k_window_test_size/100, 
+									max_memory_size=TestBase.k_window_test_size/3, 
+									max_open_handles=15)
 
 class TestBuf(TestBase):
 	
 	def test_basics(self):
-		self.failUnlessRaises(AssertionError, MappedMemoryBuffer)			# needs subclass
 		fc = FileCreator(self.k_window_test_size, "buffer_test")
 		
 		# invalid paths fail upon construction
-		self.failUnlessRaises(OSError, TestBuffer, "somefile")				# invalid file
-		self.failUnlessRaises(ValueError, TestBuffer, fc.path, fc.size)		# offset too large
+		c = man_optimal.make_cursor(fc.path)
+		self.failUnlessRaises(ValueError, MappedMemoryBuffer, type(c)())			# invalid cursor
+		self.failUnlessRaises(ValueError, MappedMemoryBuffer, c, fc.size)		# offset too large
 		
-		buf = TestBuffer()												# can create uninitailized buffers
-		assert not buf.cursor().is_valid() and not buf.cursor().is_associated()
+		buf = MappedMemoryBuffer()												# can create uninitailized buffers
+		assert buf.cursor() is None
 		
 		# can call end access any time
 		buf.end_access()
@@ -32,8 +32,9 @@ class TestBuf(TestBase):
 		
 		# begin access can revive it, if the offset is suitable
 		offset = 100
-		assert buf.begin_access(fc.path, fc.size) == False
-		assert buf.begin_access(fc.path, offset) == True
+		assert buf.begin_access(c, fc.size) == False
+		assert buf.begin_access(c, offset) == True
+		assert buf.cursor().is_valid()
 		
 		# empty begin access keeps it valid on the same path, but alters the offset
 		assert buf.begin_access() == True
@@ -52,9 +53,9 @@ class TestBuf(TestBase):
 		# an empty begin access fixes it up again
 		assert buf.begin_access() == True and buf.cursor().is_valid()
 		del(buf)		# ends access automatically
+		del(c)
 		
-		man = TestBuffer.manager
-		assert man.num_file_handles() == 1
+		assert man_optimal.num_file_handles() == 1
 		
 		# PERFORMANCE
 		# blast away with rnadom access and a full mapping - we don't want to 
@@ -62,10 +63,9 @@ class TestBuf(TestBase):
 		# We do it once with an optimal setting, and with a worse manager which 
 		# will produce small mappings only !
 		max_num_accesses = 1000
-		for manager, man_id in ( (man, 'optimal'), 
-								(MappedMemoryManager(window_size=fc.size/100, max_memory_size=fc.size/3, max_open_handles=15), 'worst case')):
-			TestBuffer.manager = manager
-			buf = TestBuffer(fc.path)
+		for manager, man_id in ( (man_optimal, 'optimal'), 
+								(man_worst_case, 'worst case')):
+			buf = MappedMemoryBuffer(manager.make_cursor(fc.path))
 			assert manager.num_file_handles() == 1
 			for access_mode in range(2):	# single, multi
 				num_accesses_left = max_num_accesses
