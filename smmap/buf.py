@@ -61,22 +61,17 @@ class MappedMemoryBuffer(object):
 		else:
 			l = j-i					# total length
 			ofs = i
-			# keep tokens, and join afterwards. This is faster
-			# as it can preallocate the total amoint of space needed
-			# (and its verified the implementation does that)
-			# Question is whether the list allocation doesn't counteract this, 
-			# but lets see ... 
-			tokens = list()
-			tappend = tokens.append
-			
+			# Keeping tokens in a list could possible be faster, but the list
+			# overhead outweighs the benefits (tested) !
+			md = str()
 			while l:
 				c.use_region(ofs, l)
 				d = c.buffer()[:l]
 				ofs += len(d)
 				l -= len(d)
-				tappend(d)
+				md += d
 			#END while there are bytes to read
-			return ''.join(tokens)
+			return md
 		# END fast or slow path
 	#{ Interface
 	
