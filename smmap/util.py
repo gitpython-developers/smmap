@@ -93,18 +93,19 @@ class MappedRegion(object):
 	#END handle additional slot
 		
 	
-	def __init__(self, path, ofs, size):
+	def __init__(self, path, ofs, size, flags = 0):
 		"""Initialize a region, allocate the memory map
 		:param path: path to the file to map
 		:param ofs: **aligned** offset into the file to be mapped 
 		:param size: if size is larger then the file on disk, the whole file will be
 			allocated the the size automatically adjusted
+		:param flags: additional flags to be given when opening the file. 
 		:raise Exception: if no memory can be allocated"""
 		self._b = ofs
 		self._size = 0
 		self._uc = 0
 		
-		fd = os.open(path, os.O_RDONLY|getattr(os, 'O_BINARY', 0))
+		fd = os.open(path, os.O_RDONLY|getattr(os, 'O_BINARY', 0)|flags)
 		try:
 			kwargs = dict(access=ACCESS_READ, offset=ofs)
 			corrected_size = size

@@ -75,7 +75,8 @@ class TestMMan(TestBase):
 		assert len(data) == fc.size
 		
 		# small windows, a reasonable max memory. Not too many regions at once
-		man = MappedMemoryManager(fc.size / 100, fc.size / 3, 15)
+		max_num_handles = 15
+		man = MappedMemoryManager(window_size=fc.size / 100, max_memory_size=fc.size / 3, max_open_handles=max_num_handles)
 		c = man.make_cursor(fc.path)
 		
 		# still empty (more about that is tested in test_memory_manager()
@@ -129,7 +130,7 @@ class TestMMan(TestBase):
 		
 		# iterate through the windows, verify data contents
 		# this will trigger map collection after a while
-		max_random_accesses = 15000
+		max_random_accesses = 5000
 		num_random_accesses = max_random_accesses
 		memory_read = 0
 		st = time()
@@ -157,9 +158,14 @@ class TestMMan(TestBase):
 			assert not includes_ofs(base_offset+csize)
 		# END while we should do an access
 		elapsed = time() - st
-		mb = 1000 * 1000
+		mb = float(1000 * 1000)
 		sys.stderr.write("Read %i mb of memory with %i random accesses in %fs (%f mb/s)\n" 
 						% (memory_read/mb, max_random_accesses, elapsed, (memory_read/mb)/elapsed))
-		
+
 		# an offset as large as the size doesn't work !
-		assert not c.use_region(fc.size, size).is_valid() 
+		assert not c.use_region(fc.size, size).is_valid()
+		
+		# collection - it should be able to collect all
+		assert man.num_file_handles()
+		assert man.collect()
+		assert man.num_file_handles() == 0
