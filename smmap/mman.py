@@ -226,7 +226,9 @@ class MemoryCursor(object):
 	def buffer(self):
 		"""Return a buffer object which allows access to our memory region from our offset
 		to the window size. Please note that it might be smaller than you requested
-		:note: You can only obtain a buffer if this instance is_valid() !"""
+		:note: You can only obtain a buffer if this instance is_valid() !
+		:note: buffers should not be cached passed the duration of your access as it will 
+			prevent resources from being freed even though they might not be accounted for anymore !"""
 		return buffer(self._region.buffer(), self._ofs, self._size)
 
 	def is_valid(self):
@@ -336,6 +338,7 @@ class MappedMemoryManager(object):
 		:param size: size of the region we want to map next (assuming its not already mapped partially or full
 			if 0, we try to free any available region
 		:raise RegionCollectionError:
+		:return: Amount of freed regions
 		:todo: implement a case where all unusued regions are discarded efficiently. Currently its only brute force"""
 		num_found = 0
 		while (size == 0) or (self._memory_size + size > self._max_memory_size):
@@ -365,6 +368,8 @@ class MappedMemoryManager(object):
 			self._handle_count -= 1
 		#END while there is more memory to free
 		
+		return num_found
+		
 	#{ Interface 
 	def make_cursor(self, path):
 		""":return: a cursor pointing to the given path. It can be used to map new regions of the file into memory"""
@@ -374,6 +379,11 @@ class MappedMemoryManager(object):
 			self._fdict[path] = regions
 		# END obtain region for path
 		return MemoryCursor(self, regions)
+		
+	def collect(self):
+		"""Collect all available free-to-collect mapped regions
+		:return: Amount of freed handles"""
+		return self._collect_lru_region(0)
 		
 	def num_file_handles(self):
 		""":return: amount of file handles in use. Each mapped region uses one file handle"""
