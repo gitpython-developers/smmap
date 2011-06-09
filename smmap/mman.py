@@ -3,6 +3,8 @@ from util import (
 					MemoryWindow,
 					MappedRegion,
 					MappedRegionList,
+					is_64_bit,
+					PAGESIZE
 				)
 
 from exc import RegionCollectionError
@@ -150,17 +152,113 @@ class MappedMemoryManager(object):
 		
 	__slots__ = [
 					'_fdict', 			# mapping of path -> MappedRegionList
-					'_max_window_size', 	# maximum size of a window
+					'_window_size', 	# maximum size of a window
 					'_max_memory_size',	# maximum amount ofmemory we may allocate
-					'_max_handles',		# maximum amount of handles to keep open
+					'_max_handle_count',		# maximum amount of handles to keep open
 					'_memory_size',		# currently allocated memory size
 					'_handle_count',		# amount of currently allocated file handles
 				]
 				
+	_MB_in_bytes = 1024 * 1024
+				
+	def __init__(self, window_size = 0, max_memory_size = 0, max_open_handles = ~0):
+		"""initialize the manager with the given parameters.
+		:param window_size: if 0, a default window size will be chosen depending on 
+			the operating system's architechture. It will internally be quantified to a multiple of the page size
+		:param max_memory_size: maximum amount of memory we may map at once before releasing mapped regions.
+			If 0, a viable default iwll be set dependning on the system's architecture.
+		:param max_open_handles: if not ~0, lmit the amount of open file handles to the given number.
+			Otherwise the amount is only limited by the system iteself. If a system or soft limit is hit, 
+			the manager will free as many handles as posisble"""
+		self._fdict = dict()
+		self._window_size = window_size
+		self._max_memory_size = max_memory_size
+		self._max_handle_count = max_open_handles
+		self._memory_size = 0
+		self._handle_count = 0
+		
+		if window_size == 0:
+			coeff = 32
+			if is_64_bit():
+				coeff = 1024
+			#END handle arch
+			self._window_size = coeff * self._MB_in_bytes
+		# END handle max window size
+		
+		if max_memory_size == 0:
+			coeff = 512
+			if is_64_bit():
+				coeff = 8192
+			#END handle arch
+			self._max_memory_size = coeff * self._MB_in_bytes
+		#END handle max memory size
+	
 	def _collect_one_lru_region(self, size):
 		"""Unmap the region which was least-recently used and has no client
 		:param size: size of the region we want to map next (assuming its not already mapped partially or full
 			if 0, we try to free any available region
 		:raise RegionCollectionError:
 		:todo: implement a case where all unusued regions are discarded efficiently. Currently its only brute force"""
+		num_found = 0
+		while (size == 0) or (self._memory_size + size > self._max_memory_size):
+			lru_region = None
+			lru_list = None
+			for regions in self._fdict.itervalues():
+				for region in regions:
+					# check client count - consider that we keep one reference ourselves !
+					if (region.client_count()-1 == 0 and 
+						(lru_region is None or region.usage_count() < lru_region.usage_count())):
+						lru_region = region
+						lru_list = regions
+					# END update lru_region
+				#END for each region
+			#END for each regions list
+			
+			if lru_region is None:
+				if num_found == 0 and size != 0:
+					raise RegionCollectionError("Didn't find any region to free")
+				#END raise if necessary
+				break
+			#END handle region not found
+			
+			num_found += 1
+			del(lru_list[lru_list.index(lru_region)])
+			self._memory_size -= lru_region.size()
+			self._handle_count -= 1
+		#END while there is more memory to free
 		
+	#{ Interface 
+	def make_cursor(self, path):
+		""":return: a cursor pointing to the given path. It can be used to map new regions of the file into memory"""
+		regions = self._fdict.get(path)
+		if regions is None:
+			regions = MappedRegionList(path)
+			self._fdict[path] = regions
+		# END obtain region for path
+		return MemoryCursor(self, regions)
+		
+	def num_file_handles(self):
+		""":return: amount of file handles in use. Each mapped region uses one file handle"""
+		return self._handle_count
+	
+	def num_open_files(self):
+		"""Amount of opened files in the system"""
+		return reduce(lambda x,y: x+y, (1 for rlist in self._fdict.itervalues() if len(rlist) > 0), 0)
+		
+	def window_size(self):
+		""":return: size of each window when allocating new regions"""
+		return self._window_size
+		
+	def mapped_memory_size(self):
+		""":return: amount of bytes currently mapped in total"""
+		return self._memory_size
+		
+	def max_mapped_memory_size(self):
+		""":return: maximum amount of memory we may allocate"""
+		return self._max_memory_size
+	
+	def page_size(self):
+		""":return: size of a single memory page in bytes"""
+		return PAGESIZE
+		
+	#} END interface

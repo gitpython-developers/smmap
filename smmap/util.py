@@ -6,7 +6,8 @@ import mmap
 from mmap import PAGESIZE
 from sys import getrefcount
 
-__all__ = ["align_to_page", "MemoryWindow", "MappedRegion", "MappedRegionList", "PAGESIZE"]
+__all__ = [	"align_to_page", "is_64_bit",
+			"MemoryWindow", "MappedRegion", "MappedRegionList", "PAGESIZE"]
 
 #{ Utilities
 
@@ -20,6 +21,10 @@ def align_to_page(num, round_up):
 		res += PAGESIZE;
 	#END handle size
 	return res;
+	
+def is_64_bit():
+	""":return: True if the system is 64 bit. Otherwise it can be assumed to be 32 bit"""
+	return sys.maxint > (1<<32) - 1
 
 #}END utilities
 
