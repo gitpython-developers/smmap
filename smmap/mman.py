@@ -8,7 +8,7 @@ from util import (
 				)
 
 from exc import RegionCollectionError
-from weakref import proxy
+from weakref import ref
 import sys
 
 __all__ = ["MappedMemoryManager"]
@@ -100,7 +100,7 @@ class MemoryCursor(object):
 		
 		if need_region:
 			# abort on offsets beyond our mapped file's size - currently we are invalid
-			if offset > self.file_size():
+			if offset >= self.file_size():
 				return self
 			# END handle offset too large
 			
@@ -222,16 +222,21 @@ class MemoryCursor(object):
 		""":return: offset to the first byte pointed to by our cursor"""
 		return self._region.ofs_begin() + self._ofs
 		
+	def ofs_end(self):
+		""":return: offset to one past the last available byte"""
+		# unroll method calls for performance !
+		return self._region.ofs_begin() + self._ofs + self._size
+		
 	def size(self):
 		""":return: amount of bytes we point to"""
 		return self._size
 		
 	def region_ref(self):
-		""":return: weak proxy to our mapped region.
+		""":return: weak ref to our mapped region.
 		:raise AssertionError: if we have no current region. This is only useful for debugging"""
 		if self._region is None:
 			raise AssertionError("region not set")
-		return proxy(self._region)
+		return ref(self._region)
 		
 	def includes_ofs(self, ofs):
 		""":return: True if the given absolute offset is contained in the cursors 

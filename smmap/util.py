@@ -83,7 +83,6 @@ class MappedRegion(object):
 					'_b'	, 	# beginning of mapping
 					'_mf',	# mapped memory chunk (as returned by mmap)
 					'_uc',	# total amount of usages
-					'_ms'	# actual size of the mapping
 					'__weakref__'
 				]
 	_need_compat_layer = sys.version_info[1] < 6
