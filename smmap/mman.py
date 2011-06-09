@@ -222,6 +222,8 @@ class MemoryCursor(object):
 			to unuse the region once you are done reading from it in persistent cursors as it 
 			helps to free up resource more quickly"""
 		self._region = None
+		# note: should reset ofs and size, but we spare that for performance. Its not 
+		# allowed to query information if we are not valid !
 
 	def buffer(self):
 		"""Return a buffer object which allows access to our memory region from our offset
@@ -240,7 +242,8 @@ class MemoryCursor(object):
 		return self._rlist is not None
 		
 	def ofs_begin(self):
-		""":return: offset to the first byte pointed to by our cursor"""
+		""":return: offset to the first byte pointed to by our cursor
+		:note: only if is_valid() is True"""
 		return self._region._b + self._ofs
 		
 	def ofs_end(self):

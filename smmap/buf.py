@@ -44,19 +44,40 @@ class MappedMemoryBuffer(object):
 		
 	def __getitem__(self, i):
 		c = self._c
+		assert c.is_valid()
 		if not c.includes_ofs(i):
 			c.use_region(i, 1)
 		# END handle region usage
-		assert c.is_valid()		# TODO: remove for performance
-		return c.buffer()[i]
+		return c.buffer()[i-c.ofs_begin()]
 	
 	def __getslice__(self, i, j):
 		c = self._c
 		# fast path, slice fully included - safes a concatenate operation and 
 		# should be the default
-		if c.ofs_begin() >= i and j < c.ofs_end():
-			return c.buffer()[i:j]
-		raise NotImplementedError()
+		assert c.is_valid()
+		if (c.ofs_begin() <= i) and (j < c.ofs_end()):
+			b = c.ofs_begin()
+			return c.buffer()[i-b:j-b]
+		else:
+			l = j-i					# total length
+			ofs = i
+			# keep tokens, and join afterwards. This is faster
+			# as it can preallocate the total amoint of space needed
+			# (and its verified the implementation does that)
+			# Question is whether the list allocation doesn't counteract this, 
+			# but lets see ... 
+			tokens = list()
+			tappend = tokens.append
+			
+			while l:
+				c.use_region(ofs, l)
+				d = c.buffer()[:l]
+				ofs += len(d)
+				l -= len(d)
+				tappend(d)
+			#END while there are bytes to read
+			return ''.join(tokens)
+		# END fast or slow path
 	#{ Interface
 	
 	def begin_access(self, path = None, offset = 0, size = sys.maxint, flags = 0):

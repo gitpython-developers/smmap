@@ -158,7 +158,7 @@ class TestMMan(TestBase):
 			assert not includes_ofs(base_offset+csize)
 		# END while we should do an access
 		elapsed = time() - st
-		mb = 1000 * 1000
+		mb = float(1000 * 1000)
 		sys.stderr.write("Read %i mb of memory with %i random accesses in %fs (%f mb/s)\n" 
 						% (memory_read/mb, max_random_accesses, elapsed, (memory_read/mb)/elapsed))
 
