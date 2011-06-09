@@ -88,6 +88,8 @@ class TestMMan(TestBase):
 		fc = FileCreator(100, "sample_file")
 		ml = MappedRegionList(fc.path)
 		
+		assert ml.client_count() == 1
+		
 		assert len(ml) == 0
 		assert ml.path() == fc.path
 		assert ml.file_size() == fc.size

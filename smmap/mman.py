@@ -9,6 +9,7 @@ from util import (
 
 from exc import RegionCollectionError
 from weakref import proxy
+import sys
 
 __all__ = ["MappedMemoryManager"]
 #{ Utilities
@@ -77,7 +78,7 @@ class MemoryCursor(object):
 		self._destroy()
 		self._copy_from(rhs)
 		
-	def use_region(self, offset, size):
+	def use_region(self, offset, size, _is_recursive=False):
 		"""Assure we point to a window which allows access to the given offset into the file
 		:param offset: absolute offset in bytes into the file
 		:param size: amount of bytes to map
@@ -85,15 +86,130 @@ class MemoryCursor(object):
 			This is not the case if the mapping failed becaues we reached the end of the file
 		:note: The size actually mapped may be smaller than the given size. If that is the case,
 			either the file has reached its end, or the map was created between two existing regions"""
+		need_region = True
+		man = self._manager
+		size = min(size, man.window_size()) 	# clamp size to window size
 		
+		if self._region is not None:
+			if self._region.includes_ofs(offset):
+				need_region = False
+			else:
+				self.unuse_region()
+			# END handle existing region
+		# END check existing region
+		
+		if need_region:
+			# abort on offsets beyond our mapped file's size - currently we are invalid
+			if offset > self.file_size():
+				return self
+			# END handle offset too large
 			
+			existing_region = None
+			for region in self._rlist:
+				if region.includes_ofs(offset):
+					existing_region = region
+					break
+				#END handle existing region
+			#END for each existing region
+			
+			if existing_region is None:
+				left = MemoryWindow(0, 0)
+				mid = MemoryWindow(offset, size)
+				right = MemoryWindow(self.file_size(), 0)
+				
+				# we want to honor the max memory size, and assure we have anough
+				# memory available
+				man._collect_lru_region(man.window_size())
+				
+				# we assume the list remains sorted by offset
+				insert_pos = 0
+				len_regions = len(self._rlist)
+				if len_regions == 1:
+					if self._rlist[0].ofs_begin() <= offset:
+						insert_pos = 1
+					#END maintain sort
+				else:
+					# find insert position
+					insert_pos = len_regions
+					for i, region in enumerate(self._rlist):
+						if region.ofs_begin() > offset:
+							insert_pos = i
+							break
+						#END if insert position is correct
+					#END for each region
+				# END obtain insert pos
+				
+				# adjust the actual offset and size values to create the largest 
+				# possible mapping
+				if insert_pos == 0:
+					if len_regions:
+						right = MemoryWindow.from_region(self._rlist[insert_pos])
+					#END adjust right side 
+				else:
+					if insert_pos != len_regions:
+						right = MemoryWindow.from_region(self._rlist[insert_pos])
+					# END adjust right window
+					left = MemoryWindow.from_region(self._rlist[insert_pos - 1])
+				#END adjust surrounding windows
+				
+				mid.extend_left_to(left, man._window_size)
+				mid.extend_right_to(right, man._window_size)
+				mid.align()
+				
+				# it can happen that we align beyond the end of the file
+				if mid.ofs_end() > right.ofs:
+					mid.size = right.ofs - mid.ofs
+				#END readjust size
+				
+				# insert new region at the right offset to keep the order
+				try:
+					if man._handle_count >= man._max_handle_count:
+						raise Exception
+					#END assert own imposed max file handles
+					self._region = MappedRegion(self._rlist.path(), mid.ofs, mid.size)
+				except Exception:
+					# apparently we are out of system resources or hit a limit
+					# As many more operations are likely to fail in that condition (
+					# like reading a file from disk, etc) we free up as much as possible
+					# As this invalidates our insert position, we have to recurse here
+					# NOTE: The c++ version uses a linked list to curcumvent this, but
+					# using that in python is probably too slow anyway
+					if _is_recursive:
+						# we already tried this, and still have no success in obtaining 
+						# a mapping. This is an exception, so we propagate it
+						raise
+					#END handle existing recursion
+					man._collect_lru_region(0)
+					return self.use_region(offset, size, True) 
+				#END handle exceptions
+				
+				man._handle_count += 1
+				man._memory_size += self._region.size()
+				self._rlist.insert(insert_pos, self._region)
+			else:
+				self._region = existing_region
+			#END need region handling
+		#END handle acquire region
+		
+		self._region.increment_usage_count()
+		self._ofs = offset - self._region.ofs_begin()
+		self._size = min(size, self._region.ofs_end() - offset)
+		
+		return self
+		
 	def unuse_region(self):
 		"""Unuse the ucrrent region. Does nothing if we have no current region
 		:note: the cursor unuses the region automatically upon destruction. It is recommended
 			to unuse the region once you are done reading from it in persistent cursors as it 
 			helps to free up resource more quickly"""
 		self._region = None
-	
+
+	def buffer(self):
+		"""Return a buffer object which allows access to our memory region from our offset
+		to the window size. Please note that it might be smaller than you requested
+		:note: You can only obtain a buffer if this instance is_valid() !"""
+		return buffer(self._region.buffer(), self._ofs, self._size)
+
 	def is_valid(self):
 		""":return: True if we have a valid and usable region"""
 		return self._region is not None
@@ -136,7 +252,6 @@ class MemoryCursor(object):
 	#} END interface
 	
 	
-	
 class MappedMemoryManager(object):
 	"""Maintains a list of ranges of mapped memory regions in one or more files and allows to easily 
 	obtain additional regions assuring there is no overlap.
@@ -161,13 +276,13 @@ class MappedMemoryManager(object):
 				
 	_MB_in_bytes = 1024 * 1024
 				
-	def __init__(self, window_size = 0, max_memory_size = 0, max_open_handles = ~0):
+	def __init__(self, window_size = 0, max_memory_size = 0, max_open_handles = sys.maxint):
 		"""initialize the manager with the given parameters.
 		:param window_size: if 0, a default window size will be chosen depending on 
 			the operating system's architechture. It will internally be quantified to a multiple of the page size
 		:param max_memory_size: maximum amount of memory we may map at once before releasing mapped regions.
 			If 0, a viable default iwll be set dependning on the system's architecture.
-		:param max_open_handles: if not ~0, lmit the amount of open file handles to the given number.
+		:param max_open_handles: if not maxin, limit the amount of open file handles to the given number.
 			Otherwise the amount is only limited by the system iteself. If a system or soft limit is hit, 
 			the manager will free as many handles as posisble"""
 		self._fdict = dict()
@@ -193,7 +308,7 @@ class MappedMemoryManager(object):
 			self._max_memory_size = coeff * self._MB_in_bytes
 		#END handle max memory size
 	
-	def _collect_one_lru_region(self, size):
+	def _collect_lru_region(self, size):
 		"""Unmap the region which was least-recently used and has no client
 		:param size: size of the region we want to map next (assuming its not already mapped partially or full
 			if 0, we try to free any available region
@@ -252,6 +367,10 @@ class MappedMemoryManager(object):
 	def mapped_memory_size(self):
 		""":return: amount of bytes currently mapped in total"""
 		return self._memory_size
+		
+	def max_file_handles(self):
+		""":return: maximium amount of handles we may have opened"""
+		return self._max_handle_count
 		
 	def max_mapped_memory_size(self):
 		""":return: maximum amount of memory we may allocate"""

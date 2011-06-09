@@ -54,7 +54,10 @@ class MemoryWindow(object):
 		return self.ofs + self.size
 
 	def align(self):
-		self.ofs = align_to_page(self.ofs, 0)
+		"""Assures the previous window area is contained in the new one"""
+		nofs = align_to_page(self.ofs, 0)
+		self.size += self.ofs - nofs	# keep size constant
+		self.ofs = nofs
 		self.size = align_to_page(self.size, 1)
 
 	def extend_left_to(self, window, max_size):
@@ -123,6 +126,10 @@ class MappedRegion(object):
 			os.close(fd)
 		#END close file handle
 		
+	def buffer(self):
+		""":return: a sliceable buffer which can be used to access the mapped memory"""
+		return self._mf
+		
 	def ofs_begin(self):
 		""":return: absolute byte offset to the first byte of the mapping"""
 		return self._b
@@ -159,6 +166,9 @@ class MappedRegion(object):
 			
 		def ofs_end(self):
 			return len(self._mf)
+			
+		def buffer(self):
+			return self._mfb
 	#END handle compat layer
 	
 
@@ -175,6 +185,10 @@ class MappedRegionList(list):
 	def __init__(self, path):
 		self._path = path
 		self._file_size = None
+		
+	def client_count(self):
+		""":return: amount of clients which hold a reference to this instance"""
+		return getrefcount(self)-3
 		
 	def path(self):
 		""":return: path to file whose regions we manage"""
