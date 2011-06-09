@@ -3,10 +3,11 @@ import os
 import sys
 import mmap
 
-from mmap import PAGESIZE
+from mmap import PAGESIZE, mmap, ACCESS_READ
 from sys import getrefcount
 
-__all__ = ["align_to_page", "MemoryWindow", "MappedRegion", "MappedRegionList", "PAGESIZE"]
+__all__ = [	"align_to_page", "is_64_bit",
+			"MemoryWindow", "MappedRegion", "MappedRegionList", "PAGESIZE"]
 
 #{ Utilities
 
@@ -20,6 +21,10 @@ def align_to_page(num, round_up):
 		res += PAGESIZE;
 	#END handle size
 	return res;
+	
+def is_64_bit():
+	""":return: True if the system is 64 bit. Otherwise it can be assumed to be 32 bit"""
+	return sys.maxint > (1<<32) - 1
 
 #}END utilities
 
@@ -43,13 +48,16 @@ class MemoryWindow(object):
 	@classmethod
 	def from_region(cls, region):
 		""":return: new window from a region"""
-		return cls(region.ofs_begin(), region.size())
+		return cls(region._b, region.size())
 
 	def ofs_end(self):
 		return self.ofs + self.size
 
 	def align(self):
-		self.ofs = align_to_page(self.ofs, 0)
+		"""Assures the previous window area is contained in the new one"""
+		nofs = align_to_page(self.ofs, 0)
+		self.size += self.ofs - nofs	# keep size constant
+		self.ofs = nofs
 		self.size = align_to_page(self.size, 1)
 
 	def extend_left_to(self, window, max_size):
@@ -75,8 +83,8 @@ class MappedRegion(object):
 					'_b'	, 	# beginning of mapping
 					'_mf',	# mapped memory chunk (as returned by mmap)
 					'_uc',	# total amount of usages
-					'_ms',	# actual size of the mapping
-					'__weakref__'	# allow weak references to a region
+					'_size', # cached size of our memory map
+					'__weakref__'
 				]
 	_need_compat_layer = sys.version_info[1] < 6
 	
@@ -93,11 +101,12 @@ class MappedRegion(object):
 			allocated the the size automatically adjusted
 		:raise Exception: if no memory can be allocated"""
 		self._b = ofs
+		self._size = 0
 		self._uc = 0
 		
 		fd = os.open(path, os.O_RDONLY|getattr(os, 'O_BINARY', 0))
 		try:
-			kwargs = dict(access=mmap.ACCESS_READ, offset=ofs)
+			kwargs = dict(access=ACCESS_READ, offset=ofs)
 			corrected_size = size
 			sizeofs = ofs
 			if self._need_compat_layer:
@@ -109,7 +118,8 @@ class MappedRegion(object):
 			# have to correct size, otherwise (instead of the c version) it will 
 			# bark that the size is too large ... many extra file accesses because
 			# if this ... argh !
-			self._mf = mmap.mmap(fd, min(os.fstat(fd).st_size - sizeofs, corrected_size - sizeofs), **kwargs)
+			self._mf = mmap(fd, min(os.fstat(fd).st_size - sizeofs, corrected_size), **kwargs)
+			self._size = len(self._mf)
 			
 			if self._need_compat_layer:
 				self._mfb = buffer(self._mf, ofs, size)
@@ -118,47 +128,61 @@ class MappedRegion(object):
 			os.close(fd)
 		#END close file handle
 		
+	def __repr__(self):
+		return "MappedRegion<%i, %i>" % (self._b, self.size())
+		
+	#{ Interface
+		
+	def buffer(self):
+		""":return: a sliceable buffer which can be used to access the mapped memory"""
+		return self._mf
+		
 	def ofs_begin(self):
 		""":return: absolute byte offset to the first byte of the mapping"""
 		return self._b
 		
 	def size(self):
 		""":return: total size of the mapped region in bytes"""
-		return len(self._mf)
+		return self._size
 		
 	def ofs_end(self):
 		""":return: Absolute offset to one byte beyond the mapping into the file"""
-		return self._b + self.size()
+		return self._b + self._size
 		
 	def includes_ofs(self, ofs):
 		""":return: True if the given offset can be read in our mapped region"""
-		return (ofs >= self.ofs_begin()) and (ofs <= self.ofs_end())
+		return self._b <= ofs < self._b + self._size
 		
 	def client_count(self):
 		""":return: number of clients currently using this region"""
 		# -1: self on stack, -1 self in this method, -1 self in getrefcount
 		return getrefcount(self)-3
 		
-	def adjust_client_count(self, ofs):
-		"""Adjust the client count by the given positive or negative offset"""
-		self._nc += ofs
-		
 	def usage_count(self):
 		""":return: amount of usages so far"""
 		return self._uc
 		
-	def adjust_usage_count(self, ofs):
+	def increment_usage_count(self):
 		"""Adjust the usage count by the given positive or negative offset"""
-		self._uc += ofs
+		self._uc += 1
 		
 	# re-define all methods which need offset adjustments in compatibility mode
 	if _need_compat_layer:
 		def size(self):
-			return len(self._mf) - self._b
+			return self._size - self._b
 			
 		def ofs_end(self):
-			return len(self._mf)
+			# always the size - we are as large as it gets
+			return self._size
+			
+		def buffer(self):
+			return self._mfb
+			
+		def includes_ofs(self, ofs):
+			return self._b <= ofs < self._size
 	#END handle compat layer
+	
+	#} END interface
 	
 
 class MappedRegionList(list):
@@ -174,6 +198,10 @@ class MappedRegionList(list):
 	def __init__(self, path):
 		self._path = path
 		self._file_size = None
+		
+	def client_count(self):
+		""":return: amount of clients which hold a reference to this instance"""
+		return getrefcount(self)-3
 		
 	def path(self):
 		""":return: path to file whose regions we manage"""

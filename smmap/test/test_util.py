@@ -75,6 +75,11 @@ class TestMMan(TestBase):
 		rfull2 = rfull
 		assert rfull.client_count() == 2
 		
+		# usage
+		assert rfull.usage_count() == 0
+		rfull.increment_usage_count()
+		assert rfull.usage_count() == 1
+		
 		# window constructor
 		w = MemoryWindow.from_region(rfull)
 		assert w.ofs == rfull.ofs_begin() and w.ofs_end() == rfull.ofs_end()
@@ -83,7 +88,14 @@ class TestMMan(TestBase):
 		fc = FileCreator(100, "sample_file")
 		ml = MappedRegionList(fc.path)
 		
+		assert ml.client_count() == 1
+		
 		assert len(ml) == 0
 		assert ml.path() == fc.path
 		assert ml.file_size() == fc.size
+		
+	def test_util(self):
+		assert isinstance(is_64_bit(), bool)	# just call it
+		assert align_to_page(1, False) == 0
+		assert align_to_page(1, True) == PAGESIZE
 		
