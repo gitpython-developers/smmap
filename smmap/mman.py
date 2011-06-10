@@ -9,17 +9,23 @@ from util import (
 from exc import RegionCollectionError
 from weakref import ref
 import sys
+from sys import getrefcount
 
 __all__ = ["StaticWindowMapManager", "SlidingWindowMapManager"]
 #{ Utilities
 
 #}END utilities
 
-class MemoryCursor(object):
-	"""Pointer into the mapped region of the memory manager, keeping the current window 
-	alive until it is destroyed.
+
+
+class WindowCursor(object):
+	"""Pointer into the mapped region of the memory manager, keeping the map 
+	alive until it is destroyed and no other client uses it.
 	
-	Cursors should not be created manually, but are instead returned by the SlidingWindowMapManager"""
+	Cursors should not be created manually, but are instead returned by the SlidingWindowMapManager
+	:note: The current implementation is suited for static and sliding window managers, but it also means 
+		that it must be suited for the somewhat quite different sliding manager. It could be improved, but 
+		I see no real need to do so."""
 	__slots__ = ( 
 					'_manager',	# the manger keeping all file regions
 					'_rlist',	# a regions list with regions for our file
@@ -130,7 +136,14 @@ class MemoryCursor(object):
 		:note: buffers should not be cached passed the duration of your access as it will 
 			prevent resources from being freed even though they might not be accounted for anymore !"""
 		return buffer(self._region.map(), self._ofs, self._size)
-
+		
+	def map(self):
+		"""
+		:return: the underlying raw memory map. Please not that the offset and size is likely to be different
+			to what you set as offset and size. Use it only if you are sure about the region it maps, which is the whole
+			file in case of StaticWindowMapManager"""
+		return self._region.map()
+		
 	def is_valid(self):
 		""":return: True if we have a valid and usable region"""
 		return self._region is not None
@@ -188,7 +201,7 @@ class MemoryCursor(object):
 		:note: it is not required to be valid anymore
 		:raise ValueError: if the mapping was not created by a file descriptor"""
 		if isinstance(self._rlist.path_or_fd(), basestring):
-			return ValueError("File descriptor queried although mapping was generated from path")
+			raise ValueError("File descriptor queried although mapping was generated from path")
 		#END handle type
 		return self._rlist.path_or_fd()
 	
@@ -208,7 +221,7 @@ class StaticWindowMapManager(object):
 	acomodate this fact"""
 		
 	__slots__ = [
-					'_fdict', 			# mapping of path -> MapRegionList
+					'_fdict', 			# mapping of path -> StorageHelper (of some kind
 					'_window_size', 	# maximum size of a window
 					'_max_memory_size',	# maximum amount ofmemory we may allocate
 					'_max_handle_count',		# maximum amount of handles to keep open
@@ -220,7 +233,7 @@ class StaticWindowMapManager(object):
 	MapRegionListCls = MapRegionList
 	MapWindowCls = MapWindow
 	MapRegionCls = MapRegion
-	MemoryCursorCls = MemoryCursor
+	WindowCursorCls = WindowCursor
 	#} END configuration
 				
 	_MB_in_bytes = 1024 * 1024
@@ -266,14 +279,77 @@ class StaticWindowMapManager(object):
 		:raise RegionCollectionError:
 		:return: Amount of freed regions
 		:todo: implement a case where all unusued regions are discarded efficiently. Currently its only brute force"""
-		raise NotImplementedError()
+		num_found = 0
+		while (size == 0) or (self._memory_size + size > self._max_memory_size):
+			for k, regions in self._fdict.iteritems():
+				found_lonely_region = False
+				for region in regions:
+					# check client count - consider that we keep one reference ourselves !
+					if (region.client_count()-2 == 0 and 
+						(lru_region is None or region._uc < lru_region._uc)):
+						# remove whole list
+						found_lonely_region = True
+						num_found += 1
+						self._memory_size -= region.size()
+						self._handle_count -= 1
+						self._fdict.pop(k)
+						
+						break
+					# END update lru_region
+				#END for each region
+				if found_lonely_region:
+					continue
+				# END skip iteration and restart
+			#END for each regions list
+			
+			# still here ?
+			if num_found == 0 and size != 0:
+				raise RegionCollectionError("Didn't find any region to free")
+			#END raise if necessary
+		#END while there is more memory to free
+		
+		return num_found
+		
 		
 	def _obtain_region(self, a, offset, size, flags, is_recursive):
 		"""Utilty to create a new region - for more information on the parameters, 
 		see MapCursor.use_region.
 		:param a: A regions (a)rray
 		:return: The newly created region"""
-		raise NotImplementedError()
+		if self._memory_size + window_size > self._max_memory_size:
+			self._collect_lru_region(window_size)
+		#END handle collection
+		
+		r = None
+		if a:
+			assert len(a) == 1
+			r = a[0]
+		else:
+			try:
+				r = self.MapRegionCls(a.path_or_fd(), 0, sys.maxint, flags)
+			except Exception:
+				# apparently we are out of system resources or hit a limit
+				# As many more operations are likely to fail in that condition (
+				# like reading a file from disk, etc) we free up as much as possible
+				# As this invalidates our insert position, we have to recurse here
+				# NOTE: The c++ version uses a linked list to curcumvent this, but
+				# using that in python is probably too slow anyway
+				if is_recursive:
+					# we already tried this, and still have no success in obtaining 
+					# a mapping. This is an exception, so we propagate it
+					raise
+				#END handle existing recursion
+				self._collect_lru_region(0)
+				return self._obtain_region(a, offset, size, flags, True) 
+			#END handle exceptions
+			
+			self._handle_count += 1
+			self._memory_size += r.size()
+		# END handle array
+		
+		assert a.includes_ofs(offset)
+		assert a.includes_ofs(offset + size-1)
+		return r
 
 	#}END internal methods
 	
@@ -293,7 +369,7 @@ class StaticWindowMapManager(object):
 			regions = self.MapRegionListCls(path_or_fd)
 			self._fdict[path_or_fd] = regions
 		# END obtain region for path
-		return self.MemoryCursorCls(self, regions)
+		return self.WindowCursorCls(self, regions)
 		
 	def collect(self):
 		"""Collect all available free-to-collect mapped regions

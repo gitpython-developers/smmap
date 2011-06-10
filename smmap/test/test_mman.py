@@ -1,7 +1,7 @@
 from lib import TestBase, FileCreator
 
 from smmap.mman import *
-from smmap.mman import MemoryCursor
+from smmap.mman import WindowCursor
 from smmap.util import align_to_mmap
 from smmap.exc import RegionCollectionError
 
@@ -17,7 +17,7 @@ class TestMMan(TestBase):
 		fc = FileCreator(self.k_window_test_size, "cursor_test")
 		
 		man = SlidingWindowMapManager()
-		ci = MemoryCursor(man)	# invalid cursor
+		ci = WindowCursor(man)	# invalid cursor
 		assert not ci.is_valid()
 		assert not ci.is_associated()
 		assert ci.size() == 0		# this is cached, so we can query it in invalid state
@@ -43,7 +43,7 @@ class TestMMan(TestBase):
 		
 		# destruction is fine (even multiple times)
 		cv._destroy()
-		MemoryCursor(man)._destroy()
+		WindowCursor(man)._destroy()
 		
 	def test_memory_manager(self):
 		man = SlidingWindowMapManager()
@@ -65,11 +65,19 @@ class TestMMan(TestBase):
 		fd = os.open(fc.path, os.O_RDONLY)
 		for item in (fc.path, fd):
 			c = man.make_cursor(item)
+			assert c.path_or_fd() is item
 			assert c.use_region(10, 10).is_valid()
 			assert c.ofs_begin() == 10
 			assert c.size() == 10
 			assert c.buffer()[:] == open(fc.path, 'rb').read(20)[10:]
+			
+			if isinstance(item, int):
+				self.failUnlessRaises(ValueError, c.path)
+			else:
+				self.failUnlessRaises(ValueError, c.fd)
+			#END handle value error
 		#END for each input
+		
 		os.close(fd)
 		
 	def test_memman_operation(self):
