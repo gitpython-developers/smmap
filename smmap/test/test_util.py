@@ -1,7 +1,6 @@
 from lib import TestBase, FileCreator
 
 from smmap.util import *
-from mmap import ALLOCATIONGRANULARITY
 
 import os
 import sys

@@ -3,7 +3,15 @@ import os
 import sys
 import mmap
 
-from mmap import ALLOCATIONGRANULARITY, mmap, ACCESS_READ
+from mmap import mmap, ACCESS_READ
+try:
+	from mmap import ALLOCATIONGRANULARITY
+except ImportError:
+	# in python pre 2.6, the ALLOCATIONGRANULARITY does not exist as it is mainly
+	# useful for aligning the offset. The offset argument doesn't exist there though
+	from mmap import PAGESIZE as ALLOCATIONGRANULARITY
+#END handle pythons missing quality assurance
+
 from sys import getrefcount
 
 __all__ = [	"align_to_mmap", "is_64_bit",
