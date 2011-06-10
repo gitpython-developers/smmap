@@ -6,6 +6,7 @@ from smmap.buf import *
 from random import randint
 from time import time
 import sys
+import os
 
 
 man_optimal = MappedMemoryManager()
@@ -63,40 +64,45 @@ class TestBuf(TestBase):
 		# We do it once with an optimal setting, and with a worse manager which 
 		# will produce small mappings only !
 		max_num_accesses = 400
-		for manager, man_id in ( (man_optimal, 'optimal'), 
-								(man_worst_case, 'worst case')):
-			buf = MappedMemoryBuffer(manager.make_cursor(fc.path))
-			assert manager.num_file_handles() == 1
-			for access_mode in range(2):	# single, multi
-				num_accesses_left = max_num_accesses
-				num_bytes = 0
-				fsize = fc.size
-				
-				st = time()
-				buf.begin_access()
-				while num_accesses_left:
-					num_accesses_left -= 1
-					if access_mode:	# multi
-						ofs_start = randint(0, fsize)
-						ofs_end = randint(ofs_start, fsize)
-						d = buf[ofs_start:ofs_end]
-						assert len(d) == ofs_end - ofs_start
-						assert d == data[ofs_start:ofs_end]
-						num_bytes += len(d)
-					else:
-						pos = randint(0, fsize)
-						assert buf[pos] == data[pos]
-						num_bytes += 1
-					#END handle mode
-				# END handle num accesses
-				
-				buf.end_access()
-				assert manager.num_file_handles()
-				assert manager.collect()
-				assert manager.num_file_handles() == 0
-				elapsed  = time() - st
-				mb = float(1000*1000)
-				mode_str = (access_mode and "slice") or "single byte"
-				sys.stderr.write("%s: Made %i random %s accesses to buffer reading a total of %f mb in %f s (%f mb/s)\n" % (man_id, max_num_accesses, mode_str, num_bytes/mb, elapsed, (num_bytes/mb)/elapsed)) 
-			# END handle access mode
-		# END for each manager
+		fd = os.open(fc.path, os.O_RDONLY)
+		for item in (fc.path, fd):
+			for manager, man_id in ( (man_optimal, 'optimal'), 
+									(man_worst_case, 'worst case')):
+				buf = MappedMemoryBuffer(manager.make_cursor(item))
+				assert manager.num_file_handles() == 1
+				for access_mode in range(2):	# single, multi
+					num_accesses_left = max_num_accesses
+					num_bytes = 0
+					fsize = fc.size
+					
+					st = time()
+					buf.begin_access()
+					while num_accesses_left:
+						num_accesses_left -= 1
+						if access_mode:	# multi
+							ofs_start = randint(0, fsize)
+							ofs_end = randint(ofs_start, fsize)
+							d = buf[ofs_start:ofs_end]
+							assert len(d) == ofs_end - ofs_start
+							assert d == data[ofs_start:ofs_end]
+							num_bytes += len(d)
+						else:
+							pos = randint(0, fsize)
+							assert buf[pos] == data[pos]
+							num_bytes += 1
+						#END handle mode
+					# END handle num accesses
+					
+					buf.end_access()
+					assert manager.num_file_handles()
+					assert manager.collect()
+					assert manager.num_file_handles() == 0
+					elapsed  = time() - st
+					mb = float(1000*1000)
+					mode_str = (access_mode and "slice") or "single byte"
+					sys.stderr.write("%s: Made %i random %s accesses to buffer created from %s reading a total of %f mb in %f s (%f mb/s)\n" 
+									% (man_id, max_num_accesses, mode_str, type(item), num_bytes/mb, elapsed, (num_bytes/mb)/elapsed)) 
+				# END handle access mode
+			# END for each manager
+		# END for each input
+		os.close(fd)

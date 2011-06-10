@@ -407,7 +407,9 @@ class MappedMemoryManager(object):
 			but may be closed afterwards. To refer to the same file, you may reuse
 			your existing file descriptor, but keep in mind that new windows can only
 			be mapped as long as it stays valid. This is why the using actual file paths
-			are preferred unless you plan to keep the file descriptor open."""
+			are preferred unless you plan to keep the file descriptor open.
+		:note: Using file descriptors directly is faster once new windows are mapped as it 
+			prevents the file to be opened again just for the purpose of mapping it."""
 		regions = self._fdict.get(path_or_fd)
 		if regions is None:
 			regions = self.MappedRegionListCls(path_or_fd)

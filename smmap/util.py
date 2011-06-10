@@ -131,7 +131,9 @@ class MappedRegion(object):
 				self._mfb = buffer(self._mf, ofs, size)
 			#END handle buffer wrapping
 		finally:
-			os.close(fd)
+			if isinstance(path_or_fd, basestring):
+				os.close(fd)
+			#END only close it if we opened it
 		#END close file handle
 		
 	def __repr__(self):
