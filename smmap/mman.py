@@ -4,9 +4,9 @@ from util import (
 					MapRegion,
 					MapRegionList,
 					is_64_bit,
+					align_to_mmap
 				)
 
-from exc import RegionCollectionError
 from weakref import ref
 import sys
 from sys import getrefcount
@@ -83,10 +83,10 @@ class WindowCursor(object):
 		self._destroy()
 		self._copy_from(rhs)
 		
-	def use_region(self, offset, size, flags = 0):
+	def use_region(self, offset, size = 0, flags = 0):
 		"""Assure we point to a window which allows access to the given offset into the file
 		:param offset: absolute offset in bytes into the file
-		:param size: amount of bytes to map
+		:param size: amount of bytes to map. If 0, all available bytes will be mapped
 		:param flags: additional flags to be given to os.open in case a file handle is initially opened
 			for mapping. Has no effect if a region can actually be reused.
 		:return: this instance - it should be queried for whether it points to a valid memory region.
@@ -96,7 +96,7 @@ class WindowCursor(object):
 		need_region = True
 		man = self._manager
 		fsize = self._rlist.file_size()
-		size = min(size, man.window_size() or fsize) 	# clamp size to window size
+		size = min(size or fsize, man.window_size() or fsize) 	# clamp size to window size
 		
 		if self._region is not None:
 			if self._region.includes_ofs(offset):
@@ -246,6 +246,7 @@ class StaticWindowMapManager(object):
 			If 0, the window may have any size, which basically results in mapping the whole file at one
 		:param max_memory_size: maximum amount of memory we may map at once before releasing mapped regions.
 			If 0, a viable default iwll be set dependning on the system's architecture.
+			It is a soft limit that is tried to be kept, but nothing bad happens if we have to overallocate
 		:param max_open_handles: if not maxin, limit the amount of open file handles to the given number.
 			Otherwise the amount is only limited by the system iteself. If a system or soft limit is hit, 
 			the manager will free as many handles as posisble"""
@@ -278,8 +279,9 @@ class StaticWindowMapManager(object):
 		"""Unmap the region which was least-recently used and has no client
 		:param size: size of the region we want to map next (assuming its not already mapped partially or full
 			if 0, we try to free any available region
-		:raise RegionCollectionError:
 		:return: Amount of freed regions
+		:note: We don't raise exceptions anymore, in order to keep the system working, allowing temporary overallocation.
+			If the system runs out of memory, it will tell.
 		:todo: implement a case where all unusued regions are discarded efficiently. Currently its only brute force"""
 		num_found = 0
 		while (size == 0) or (self._memory_size + size > self._max_memory_size):
@@ -297,9 +299,6 @@ class StaticWindowMapManager(object):
 			#END for each regions list
 			
 			if lru_region is None:
-				if num_found == 0 and size != 0:
-					raise RegionCollectionError("Didn't find any region to free")
-				#END raise if necessary
 				break
 			#END handle region not found
 			
@@ -344,10 +343,11 @@ class StaticWindowMapManager(object):
 			
 			self._handle_count += 1
 			self._memory_size += r.size()
+			a.append(r)
 		# END handle array
 		
 		assert r.includes_ofs(offset)
-		assert r.includes_ofs(offset + size-1)
+		#assert r.includes_ofs(offset+size-1)
 		return r
 
 	#}END internal methods
