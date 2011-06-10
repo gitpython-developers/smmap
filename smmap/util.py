@@ -93,9 +93,9 @@ class MappedRegion(object):
 	#END handle additional slot
 		
 	
-	def __init__(self, path, ofs, size, flags = 0):
+	def __init__(self, path_or_fd, ofs, size, flags = 0):
 		"""Initialize a region, allocate the memory map
-		:param path: path to the file to map
+		:param path_or_fd: path to the file to map, or the opened file descriptor
 		:param ofs: **aligned** offset into the file to be mapped 
 		:param size: if size is larger then the file on disk, the whole file will be
 			allocated the the size automatically adjusted
@@ -105,7 +105,12 @@ class MappedRegion(object):
 		self._size = 0
 		self._uc = 0
 		
-		fd = os.open(path, os.O_RDONLY|getattr(os, 'O_BINARY', 0)|flags)
+		if isinstance(path_or_fd, int):
+			fd = path_or_fd
+		else:
+			fd = os.open(path_or_fd, os.O_RDONLY|getattr(os, 'O_BINARY', 0)|flags)
+		#END handle fd
+		
 		try:
 			kwargs = dict(access=ACCESS_READ, offset=ofs)
 			corrected_size = size
@@ -189,29 +194,33 @@ class MappedRegion(object):
 class MappedRegionList(list):
 	"""List of MappedRegion instances associating a path with a list of regions."""
 	__slots__ = (
-				'_path', 		# path which is mapped by all our regions
+				'_path_or_fd', 	# path or file descriptor which is mapped by all our regions
 				'_file_size'		# total size of the file we map
 				)
 	
 	def __new__(cls, path):
 		return super(MappedRegionList, cls).__new__(cls)
 	
-	def __init__(self, path):
-		self._path = path
+	def __init__(self, path_or_fd):
+		self._path_or_fd = path_or_fd
 		self._file_size = None
 		
 	def client_count(self):
 		""":return: amount of clients which hold a reference to this instance"""
 		return getrefcount(self)-3
 		
-	def path(self):
-		""":return: path to file whose regions we manage"""
-		return self._path
+	def path_or_fd(self):
+		""":return: path or file descriptor we are attached to"""
+		return self._path_or_fd
 		
 	def file_size(self):
 		""":return: size of file we manager"""
 		if self._file_size is None:
-			self._file_size = os.stat(self._path).st_size
+			if isinstance(self._path_or_fd, basestring):
+				self._file_size = os.stat(self._path_or_fd).st_size
+			else:
+				self._file_size = os.fstat(self._path_or_fd).st_size
+			#END handle path type
 		#END update file size
 		return self._file_size
 	

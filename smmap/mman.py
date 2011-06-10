@@ -54,7 +54,7 @@ class MemoryCursor(object):
 			num_clients = self._rlist.client_count() - 2
 			if num_clients == 0 and len(self._rlist) == 0:
 				# Free all resources associated with the mapped file
-				self._manager._fdict.pop(self._rlist.path())
+				self._manager._fdict.pop(self._rlist.path_or_fd())
 			#END remove regions list from manager
 		#END handle regions
 		
@@ -190,7 +190,7 @@ class MemoryCursor(object):
 					if man._handle_count >= man._max_handle_count:
 						raise Exception
 					#END assert own imposed max file handles
-					self._region = self.MappedRegionCls(a.path(), mid.ofs, mid.size, flags)
+					self._region = self.MappedRegionCls(a.path_or_fd(), mid.ofs, mid.size, flags)
 				except Exception:
 					# apparently we are out of system resources or hit a limit
 					# As many more operations are likely to fail in that condition (
@@ -278,9 +278,26 @@ class MemoryCursor(object):
 		""":return: size of the underlying file"""
 		return self._rlist.file_size()
 		
+	def path_or_fd(self):
+		""":return: path or file decriptor of the underlying mapped file"""
+		return self._rlist.path_or_fd()
+
 	def path(self):
-		""":return: path of the underlying mapped file"""
-		return self._rlist.path()
+		""":return: path of the underlying mapped file
+		:raise ValueError: if attached path is not a path"""
+		if isinstance(self._rlist.path_or_fd(), int):
+			raise ValueError("Path queried although mapping was applied to a file descriptor")
+		# END handle type
+		return self._rlist.path_or_fd()
+		
+	def fd(self):
+		""":return: file descriptor used to create the underlying mapping.
+		:note: it is not required to be valid anymore
+		:raise ValueError: if the mapping was not created by a file descriptor"""
+		if isinstance(self._rlist.path_or_fd(), basestring):
+			return ValueError("File descriptor queried although mapping was generated from path")
+		#END handle type
+		return self._rlist.path_or_fd()
 	
 	#} END interface
 	
@@ -383,12 +400,18 @@ class MappedMemoryManager(object):
 		return num_found
 		
 	#{ Interface 
-	def make_cursor(self, path):
-		""":return: a cursor pointing to the given path. It can be used to map new regions of the file into memory"""
-		regions = self._fdict.get(path)
+	def make_cursor(self, path_or_fd):
+		""":return: a cursor pointing to the given path or file descriptor. 
+		It can be used to map new regions of the file into memory
+		:note: if a file descriptor is given, it is assumed to be open and valid,
+			but may be closed afterwards. To refer to the same file, you may reuse
+			your existing file descriptor, but keep in mind that new windows can only
+			be mapped as long as it stays valid. This is why the using actual file paths
+			are preferred unless you plan to keep the file descriptor open."""
+		regions = self._fdict.get(path_or_fd)
 		if regions is None:
-			regions = self.MappedRegionListCls(path)
-			self._fdict[path] = regions
+			regions = self.MappedRegionListCls(path_or_fd)
+			self._fdict[path_or_fd] = regions
 		# END obtain region for path
 		return MemoryCursor(self, regions)
 		
