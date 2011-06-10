@@ -1,6 +1,6 @@
 from lib import TestBase, FileCreator
 
-from smmap.mman import SlidingWindowMapManager
+from smmap.mman import SlidingWindowMapManager, StaticWindowMapManager
 from smmap.buf import *
 
 from random import randint
@@ -13,6 +13,7 @@ man_optimal = SlidingWindowMapManager()
 man_worst_case = SlidingWindowMapManager(	window_size=TestBase.k_window_test_size/100, 
 									max_memory_size=TestBase.k_window_test_size/3, 
 									max_open_handles=15)
+static_man = StaticWindowMapManager()
 
 class TestBuf(TestBase):
 	
@@ -70,7 +71,8 @@ class TestBuf(TestBase):
 		fd = os.open(fc.path, os.O_RDONLY)
 		for item in (fc.path, fd):
 			for manager, man_id in ( (man_optimal, 'optimal'), 
-									(man_worst_case, 'worst case')):
+									(man_worst_case, 'worst case'),
+									(static_man, 'static optimial')):
 				buf = SlidingWindowMapBuffer(manager.make_cursor(item))
 				assert manager.num_file_handles() == 1
 				for access_mode in range(2):	# single, multi

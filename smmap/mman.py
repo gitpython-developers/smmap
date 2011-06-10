@@ -4,22 +4,28 @@ from util import (
 					MapRegion,
 					MapRegionList,
 					is_64_bit,
+					align_to_mmap
 				)
 
-from exc import RegionCollectionError
 from weakref import ref
 import sys
+from sys import getrefcount
 
-__all__ = ["SlidingWindowMapManager"]
+__all__ = ["StaticWindowMapManager", "SlidingWindowMapManager"]
 #{ Utilities
 
 #}END utilities
 
-class SlidingCursor(object):
-	"""Pointer into the mapped region of the memory manager, keeping the current window 
-	alive until it is destroyed.
+
+
+class WindowCursor(object):
+	"""Pointer into the mapped region of the memory manager, keeping the map 
+	alive until it is destroyed and no other client uses it.
 	
-	Cursors should not be created manually, but are instead returned by the SlidingWindowMapManager"""
+	Cursors should not be created manually, but are instead returned by the SlidingWindowMapManager
+	:note: The current implementation is suited for static and sliding window managers, but it also means 
+		that it must be suited for the somewhat quite different sliding manager. It could be improved, but 
+		I see no real need to do so."""
 	__slots__ = ( 
 					'_manager',	# the manger keeping all file regions
 					'_rlist',	# a regions list with regions for our file
@@ -27,11 +33,6 @@ class SlidingCursor(object):
 					'_ofs',		# relative offset from the actually mapped area to our start area
 					'_size'		# maximum size we should provide
 				)
-	
-	#{ Configuration
-	MapWindowCls = MapWindow
-	MapRegionCls = MapRegion
-	#} END configuration
 	
 	def __init__(self, manager = None, regions = None):
 		self._manager = manager
@@ -82,10 +83,10 @@ class SlidingCursor(object):
 		self._destroy()
 		self._copy_from(rhs)
 		
-	def use_region(self, offset, size, flags = 0, _is_recursive=False):
+	def use_region(self, offset = 0, size = 0, flags = 0):
 		"""Assure we point to a window which allows access to the given offset into the file
 		:param offset: absolute offset in bytes into the file
-		:param size: amount of bytes to map
+		:param size: amount of bytes to map. If 0, all available bytes will be mapped
 		:param flags: additional flags to be given to os.open in case a file handle is initially opened
 			for mapping. Has no effect if a region can actually be reused.
 		:return: this instance - it should be queried for whether it points to a valid memory region.
@@ -94,7 +95,8 @@ class SlidingCursor(object):
 			either the file has reached its end, or the map was created between two existing regions"""
 		need_region = True
 		man = self._manager
-		size = min(size, man.window_size()) 	# clamp size to window size
+		fsize = self._rlist.file_size()
+		size = min(size or fsize, man.window_size() or fsize) 	# clamp size to window size
 		
 		if self._region is not None:
 			if self._region.includes_ofs(offset):
@@ -104,115 +106,14 @@ class SlidingCursor(object):
 			# END handle existing region
 		# END check existing region
 		
+		# offset too large ?
+		if offset >= fsize:
+			return self
+		#END handle offset
+		
 		if need_region:
-			window_size = man._window_size
-			
-			# abort on offsets beyond our mapped file's size - currently we are invalid
-			if offset >= self.file_size():
-				return self
-			# END handle offset too large
-			
-			# bisect to find an existing region. The c++ implementation cannot 
-			# do that as it uses a linked list for regions.
-			existing_region = None
-			a = self._rlist
-			lo = 0
-			hi = len(a)
-			while lo < hi:
-				mid = (lo+hi)//2
-				ofs = a[mid]._b
-				if ofs <= offset:
-					if a[mid].includes_ofs(offset):
-						existing_region = a[mid]
-						break
-					#END have region
-					lo = mid+1
-				else:
-					hi = mid
-				#END handle position
-			#END while bisecting
-			
-			if existing_region is None:
-				left = self.MapWindowCls(0, 0)
-				mid = self.MapWindowCls(offset, size)
-				right = self.MapWindowCls(self.file_size(), 0)
-				
-				# we want to honor the max memory size, and assure we have anough
-				# memory available
-				# Save calls !
-				if self._manager._memory_size + window_size > self._manager._max_memory_size:
-					man._collect_lru_region(window_size)
-				#END handle collection
-				
-				# we assume the list remains sorted by offset
-				insert_pos = 0
-				len_regions = len(a)
-				if len_regions == 1:
-					if a[0]._b <= offset:
-						insert_pos = 1
-					#END maintain sort
-				else:
-					# find insert position
-					insert_pos = len_regions
-					for i, region in enumerate(a):
-						if region._b > offset:
-							insert_pos = i
-							break
-						#END if insert position is correct
-					#END for each region
-				# END obtain insert pos
-				
-				# adjust the actual offset and size values to create the largest 
-				# possible mapping
-				if insert_pos == 0:
-					if len_regions:
-						right = self.MapWindowCls.from_region(a[insert_pos])
-					#END adjust right side 
-				else:
-					if insert_pos != len_regions:
-						right = self.MapWindowCls.from_region(a[insert_pos])
-					# END adjust right window
-					left = self.MapWindowCls.from_region(a[insert_pos - 1])
-				#END adjust surrounding windows
-				
-				mid.extend_left_to(left, window_size)
-				mid.extend_right_to(right, window_size)
-				mid.align()
-				
-				# it can happen that we align beyond the end of the file
-				if mid.ofs_end() > right.ofs:
-					mid.size = right.ofs - mid.ofs
-				#END readjust size
-				
-				# insert new region at the right offset to keep the order
-				try:
-					if man._handle_count >= man._max_handle_count:
-						raise Exception
-					#END assert own imposed max file handles
-					self._region = self.MapRegionCls(a.path_or_fd(), mid.ofs, mid.size, flags)
-				except Exception:
-					# apparently we are out of system resources or hit a limit
-					# As many more operations are likely to fail in that condition (
-					# like reading a file from disk, etc) we free up as much as possible
-					# As this invalidates our insert position, we have to recurse here
-					# NOTE: The c++ version uses a linked list to curcumvent this, but
-					# using that in python is probably too slow anyway
-					if _is_recursive:
-						# we already tried this, and still have no success in obtaining 
-						# a mapping. This is an exception, so we propagate it
-						raise
-					#END handle existing recursion
-					man._collect_lru_region(0)
-					return self.use_region(offset, size, flags, True) 
-				#END handle exceptions
-				
-				man._handle_count += 1
-				man._memory_size += self._region.size()
-				a.insert(insert_pos, self._region)
-			else:
-				self._region = existing_region
-			#END need region handling
-		#END handle acquire region
+			self._region = man._obtain_region(self._rlist, offset, size, flags, False)
+		#END need region handling
 		
 		self._region.increment_usage_count()
 		self._ofs = offset - self._region._b
@@ -231,12 +132,19 @@ class SlidingCursor(object):
 
 	def buffer(self):
 		"""Return a buffer object which allows access to our memory region from our offset
-		to the window size. Please note that it might be smaller than you requested
+		to the window size. Please note that it might be smaller than you requested when calling use_region()
 		:note: You can only obtain a buffer if this instance is_valid() !
 		:note: buffers should not be cached passed the duration of your access as it will 
 			prevent resources from being freed even though they might not be accounted for anymore !"""
 		return buffer(self._region.buffer(), self._ofs, self._size)
-
+		
+	def map(self):
+		"""
+		:return: the underlying raw memory map. Please not that the offset and size is likely to be different
+			to what you set as offset and size. Use it only if you are sure about the region it maps, which is the whole
+			file in case of StaticWindowMapManager"""
+		return self._region.map()
+		
 	def is_valid(self):
 		""":return: True if we have a valid and usable region"""
 		return self._region is not None
@@ -294,28 +202,27 @@ class SlidingCursor(object):
 		:note: it is not required to be valid anymore
 		:raise ValueError: if the mapping was not created by a file descriptor"""
 		if isinstance(self._rlist.path_or_fd(), basestring):
-			return ValueError("File descriptor queried although mapping was generated from path")
+			raise ValueError("File descriptor queried although mapping was generated from path")
 		#END handle type
 		return self._rlist.path_or_fd()
 	
 	#} END interface
 	
 	
-class SlidingWindowMapManager(object):
-	"""Maintains a list of ranges of mapped memory regions in one or more files and allows to easily 
-	obtain additional regions assuring there is no overlap.
-	Once a certain memory limit is reached globally, or if there cannot be more open file handles 
-	which result from each mmap call, the least recently used, and currently unused mapped regions
-	are unloaded automatically.
+class StaticWindowMapManager(object):
+	"""Provides a manager which will produce single size cursors that are allowed
+	to always map the whole file.
 	
-	:note: currently not thread-safe !
-	:note: in the current implementation, we will automatically unload windows if we either cannot
-		create more memory maps (as the open file handles limit is hit) or if we have allocated more than 
-		a safe amount of memory already, which would possibly cause memory allocations to fail as our address
-		space is full."""
+	Clients must be written to specifically know that they are accessing their data
+	through a StaticWindowMapManager, as they otherwise have to deal with their window size.
+	
+	These clients would have to use a SlidingWindowMapBuffer to hide this fact.
+	
+	This type will always use a maximum window size, and optimize certain methods to 
+	acomodate this fact"""
 		
 	__slots__ = [
-					'_fdict', 			# mapping of path -> MapRegionList
+					'_fdict', 			# mapping of path -> StorageHelper (of some kind
 					'_window_size', 	# maximum size of a window
 					'_max_memory_size',	# maximum amount ofmemory we may allocate
 					'_max_handle_count',		# maximum amount of handles to keep open
@@ -325,16 +232,21 @@ class SlidingWindowMapManager(object):
 				
 	#{ Configuration
 	MapRegionListCls = MapRegionList
+	MapWindowCls = MapWindow
+	MapRegionCls = MapRegion
+	WindowCursorCls = WindowCursor
 	#} END configuration
 				
 	_MB_in_bytes = 1024 * 1024
 				
 	def __init__(self, window_size = 0, max_memory_size = 0, max_open_handles = sys.maxint):
 		"""initialize the manager with the given parameters.
-		:param window_size: if 0, a default window size will be chosen depending on 
+		:param window_size: if -1, a default window size will be chosen depending on 
 			the operating system's architechture. It will internally be quantified to a multiple of the page size
+			If 0, the window may have any size, which basically results in mapping the whole file at one
 		:param max_memory_size: maximum amount of memory we may map at once before releasing mapped regions.
 			If 0, a viable default iwll be set dependning on the system's architecture.
+			It is a soft limit that is tried to be kept, but nothing bad happens if we have to overallocate
 		:param max_open_handles: if not maxin, limit the amount of open file handles to the given number.
 			Otherwise the amount is only limited by the system iteself. If a system or soft limit is hit, 
 			the manager will free as many handles as posisble"""
@@ -345,7 +257,7 @@ class SlidingWindowMapManager(object):
 		self._memory_size = 0
 		self._handle_count = 0
 		
-		if window_size == 0:
+		if window_size < 0:
 			coeff = 32
 			if is_64_bit():
 				coeff = 1024
@@ -361,12 +273,15 @@ class SlidingWindowMapManager(object):
 			self._max_memory_size = coeff * self._MB_in_bytes
 		#END handle max memory size
 	
+	#{ Internal Methods
+	
 	def _collect_lru_region(self, size):
 		"""Unmap the region which was least-recently used and has no client
 		:param size: size of the region we want to map next (assuming its not already mapped partially or full
 			if 0, we try to free any available region
-		:raise RegionCollectionError:
 		:return: Amount of freed regions
+		:note: We don't raise exceptions anymore, in order to keep the system working, allowing temporary overallocation.
+			If the system runs out of memory, it will tell.
 		:todo: implement a case where all unusued regions are discarded efficiently. Currently its only brute force"""
 		num_found = 0
 		while (size == 0) or (self._memory_size + size > self._max_memory_size):
@@ -384,9 +299,6 @@ class SlidingWindowMapManager(object):
 			#END for each regions list
 			
 			if lru_region is None:
-				if num_found == 0 and size != 0:
-					raise RegionCollectionError("Didn't find any region to free")
-				#END raise if necessary
 				break
 			#END handle region not found
 			
@@ -395,9 +307,51 @@ class SlidingWindowMapManager(object):
 			self._memory_size -= lru_region.size()
 			self._handle_count -= 1
 		#END while there is more memory to free
-		
 		return num_found
 		
+	def _obtain_region(self, a, offset, size, flags, is_recursive):
+		"""Utilty to create a new region - for more information on the parameters, 
+		see MapCursor.use_region.
+		:param a: A regions (a)rray
+		:return: The newly created region"""
+		if self._memory_size + size > self._max_memory_size:
+			self._collect_lru_region(size)
+		#END handle collection
+		
+		r = None
+		if a:
+			assert len(a) == 1
+			r = a[0]
+		else:
+			try:
+				r = self.MapRegionCls(a.path_or_fd(), 0, sys.maxint, flags)
+			except Exception:
+				# apparently we are out of system resources or hit a limit
+				# As many more operations are likely to fail in that condition (
+				# like reading a file from disk, etc) we free up as much as possible
+				# As this invalidates our insert position, we have to recurse here
+				# NOTE: The c++ version uses a linked list to curcumvent this, but
+				# using that in python is probably too slow anyway
+				if is_recursive:
+					# we already tried this, and still have no success in obtaining 
+					# a mapping. This is an exception, so we propagate it
+					raise
+				#END handle existing recursion
+				self._collect_lru_region(0)
+				return self._obtain_region(a, offset, size, flags, True) 
+			#END handle exceptions
+			
+			self._handle_count += 1
+			self._memory_size += r.size()
+			a.append(r)
+		# END handle array
+		
+		assert r.includes_ofs(offset)
+		#assert r.includes_ofs(offset+size-1)
+		return r
+
+	#}END internal methods
+	
 	#{ Interface 
 	def make_cursor(self, path_or_fd):
 		""":return: a cursor pointing to the given path or file descriptor. 
@@ -407,6 +361,8 @@ class SlidingWindowMapManager(object):
 			your existing file descriptor, but keep in mind that new windows can only
 			be mapped as long as it stays valid. This is why the using actual file paths
 			are preferred unless you plan to keep the file descriptor open.
+		:note: file descriptors are problematic as they are not necessarily unique, as two 
+			different files opened and closed in succession might have the same file descriptor id. 
 		:note: Using file descriptors directly is faster once new windows are mapped as it 
 			prevents the file to be opened again just for the purpose of mapping it."""
 		regions = self._fdict.get(path_or_fd)
@@ -414,7 +370,7 @@ class SlidingWindowMapManager(object):
 			regions = self.MapRegionListCls(path_or_fd)
 			self._fdict[path_or_fd] = regions
 		# END obtain region for path
-		return SlidingCursor(self, regions)
+		return self.WindowCursorCls(self, regions)
 		
 	def collect(self):
 		"""Collect all available free-to-collect mapped regions
@@ -475,3 +431,127 @@ class SlidingWindowMapManager(object):
 		#END for each path
 		return num_closed
 	#} END special purpose interface
+	
+	
+	
+class SlidingWindowMapManager(StaticWindowMapManager):
+	"""Maintains a list of ranges of mapped memory regions in one or more files and allows to easily 
+	obtain additional regions assuring there is no overlap.
+	Once a certain memory limit is reached globally, or if there cannot be more open file handles 
+	which result from each mmap call, the least recently used, and currently unused mapped regions
+	are unloaded automatically.
+	
+	:note: currently not thread-safe !
+	:note: in the current implementation, we will automatically unload windows if we either cannot
+		create more memory maps (as the open file handles limit is hit) or if we have allocated more than 
+		a safe amount of memory already, which would possibly cause memory allocations to fail as our address
+		space is full."""
+		
+	__slots__ = tuple()
+	
+	def __init__(self, window_size = -1, max_memory_size = 0, max_open_handles = sys.maxint):
+		"""Adjusts the default window size to -1"""
+		super(SlidingWindowMapManager, self).__init__(window_size, max_memory_size, max_open_handles)
+	
+	def _obtain_region(self, a, offset, size, flags, is_recursive):
+		# bisect to find an existing region. The c++ implementation cannot 
+		# do that as it uses a linked list for regions.
+		r = None
+		lo = 0
+		hi = len(a)
+		while lo < hi:
+			mid = (lo+hi)//2
+			ofs = a[mid]._b
+			if ofs <= offset:
+				if a[mid].includes_ofs(offset):
+					r = a[mid]
+					break
+				#END have region
+				lo = mid+1
+			else:
+				hi = mid
+			#END handle position
+		#END while bisecting
+		
+		if r is None:
+			window_size = self._window_size
+			left = self.MapWindowCls(0, 0)
+			mid = self.MapWindowCls(offset, size)
+			right = self.MapWindowCls(a.file_size(), 0)
+			
+			# we want to honor the max memory size, and assure we have anough
+			# memory available
+			# Save calls !
+			if self._memory_size + window_size > self._max_memory_size:
+				self._collect_lru_region(window_size)
+			#END handle collection
+			
+			# we assume the list remains sorted by offset
+			insert_pos = 0
+			len_regions = len(a)
+			if len_regions == 1:
+				if a[0]._b <= offset:
+					insert_pos = 1
+				#END maintain sort
+			else:
+				# find insert position
+				insert_pos = len_regions
+				for i, region in enumerate(a):
+					if region._b > offset:
+						insert_pos = i
+						break
+					#END if insert position is correct
+				#END for each region
+			# END obtain insert pos
+			
+			# adjust the actual offset and size values to create the largest 
+			# possible mapping
+			if insert_pos == 0:
+				if len_regions:
+					right = self.MapWindowCls.from_region(a[insert_pos])
+				#END adjust right side 
+			else:
+				if insert_pos != len_regions:
+					right = self.MapWindowCls.from_region(a[insert_pos])
+				# END adjust right window
+				left = self.MapWindowCls.from_region(a[insert_pos - 1])
+			#END adjust surrounding windows
+			
+			mid.extend_left_to(left, window_size)
+			mid.extend_right_to(right, window_size)
+			mid.align()
+			
+			# it can happen that we align beyond the end of the file
+			if mid.ofs_end() > right.ofs:
+				mid.size = right.ofs - mid.ofs
+			#END readjust size
+			
+			# insert new region at the right offset to keep the order
+			try:
+				if self._handle_count >= self._max_handle_count:
+					raise Exception
+				#END assert own imposed max file handles
+				r = self.MapRegionCls(a.path_or_fd(), mid.ofs, mid.size, flags)
+			except Exception:
+				# apparently we are out of system resources or hit a limit
+				# As many more operations are likely to fail in that condition (
+				# like reading a file from disk, etc) we free up as much as possible
+				# As this invalidates our insert position, we have to recurse here
+				# NOTE: The c++ version uses a linked list to curcumvent this, but
+				# using that in python is probably too slow anyway
+				if is_recursive:
+					# we already tried this, and still have no success in obtaining 
+					# a mapping. This is an exception, so we propagate it
+					raise
+				#END handle existing recursion
+				self._collect_lru_region(0)
+				return self._obtain_region(a, offset, size, flags, True) 
+			#END handle exceptions
+			
+			self._handle_count += 1
+			self._memory_size += r.size()
+			a.insert(insert_pos, r)
+		# END create new region
+		return r
+		
+	
