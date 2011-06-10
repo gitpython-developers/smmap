@@ -95,7 +95,8 @@ class WindowCursor(object):
 			either the file has reached its end, or the map was created between two existing regions"""
 		need_region = True
 		man = self._manager
-		size = min(size, man.window_size()) 	# clamp size to window size
+		fsize = self._rlist.file_size()
+		size = min(size, man.window_size() or fsize) 	# clamp size to window size
 		
 		if self._region is not None:
 			if self._region.includes_ofs(offset):
@@ -106,7 +107,7 @@ class WindowCursor(object):
 		# END check existing region
 		
 		# offset too large ?
-		if offset >= self._rlist.file_size():
+		if offset >= fsize:
 			return self
 		#END handle offset
 		
@@ -238,10 +239,11 @@ class StaticWindowMapManager(object):
 				
 	_MB_in_bytes = 1024 * 1024
 				
-	def __init__(self, window_size = sys.maxint, max_memory_size = 0, max_open_handles = sys.maxint):
+	def __init__(self, window_size = 0, max_memory_size = 0, max_open_handles = sys.maxint):
 		"""initialize the manager with the given parameters.
-		:param window_size: if 0, a default window size will be chosen depending on 
+		:param window_size: if -1, a default window size will be chosen depending on 
 			the operating system's architechture. It will internally be quantified to a multiple of the page size
+			If 0, the window may have any size, which basically results in mapping the whole file at one
 		:param max_memory_size: maximum amount of memory we may map at once before releasing mapped regions.
 			If 0, a viable default iwll be set dependning on the system's architecture.
 		:param max_open_handles: if not maxin, limit the amount of open file handles to the given number.
@@ -254,7 +256,7 @@ class StaticWindowMapManager(object):
 		self._memory_size = 0
 		self._handle_count = 0
 		
-		if window_size == 0:
+		if window_size < 0:
 			coeff = 32
 			if is_64_bit():
 				coeff = 1024
@@ -281,43 +283,40 @@ class StaticWindowMapManager(object):
 		:todo: implement a case where all unusued regions are discarded efficiently. Currently its only brute force"""
 		num_found = 0
 		while (size == 0) or (self._memory_size + size > self._max_memory_size):
-			for k, regions in self._fdict.iteritems():
-				found_lonely_region = False
+			lru_region = None
+			lru_list = None
+			for regions in self._fdict.itervalues():
 				for region in regions:
 					# check client count - consider that we keep one reference ourselves !
 					if (region.client_count()-2 == 0 and 
 						(lru_region is None or region._uc < lru_region._uc)):
-						# remove whole list
-						found_lonely_region = True
-						num_found += 1
-						self._memory_size -= region.size()
-						self._handle_count -= 1
-						self._fdict.pop(k)
-						
-						break
+						lru_region = region
+						lru_list = regions
 					# END update lru_region
 				#END for each region
-				if found_lonely_region:
-					continue
-				# END skip iteration and restart
 			#END for each regions list
 			
-			# still here ?
-			if num_found == 0 and size != 0:
-				raise RegionCollectionError("Didn't find any region to free")
-			#END raise if necessary
+			if lru_region is None:
+				if num_found == 0 and size != 0:
+					raise RegionCollectionError("Didn't find any region to free")
+				#END raise if necessary
+				break
+			#END handle region not found
+			
+			num_found += 1
+			del(lru_list[lru_list.index(lru_region)])
+			self._memory_size -= lru_region.size()
+			self._handle_count -= 1
 		#END while there is more memory to free
-		
 		return num_found
-		
 		
 	def _obtain_region(self, a, offset, size, flags, is_recursive):
 		"""Utilty to create a new region - for more information on the parameters, 
 		see MapCursor.use_region.
 		:param a: A regions (a)rray
 		:return: The newly created region"""
-		if self._memory_size + window_size > self._max_memory_size:
-			self._collect_lru_region(window_size)
+		if self._memory_size + size > self._max_memory_size:
+			self._collect_lru_region(size)
 		#END handle collection
 		
 		r = None
@@ -347,8 +346,8 @@ class StaticWindowMapManager(object):
 			self._memory_size += r.size()
 		# END handle array
 		
-		assert a.includes_ofs(offset)
-		assert a.includes_ofs(offset + size-1)
+		assert r.includes_ofs(offset)
+		assert r.includes_ofs(offset + size-1)
 		return r
 
 	#}END internal methods
@@ -362,6 +361,8 @@ class StaticWindowMapManager(object):
 			your existing file descriptor, but keep in mind that new windows can only
 			be mapped as long as it stays valid. This is why the using actual file paths
 			are preferred unless you plan to keep the file descriptor open.
+		:note: file descriptors are problematic as they are not necessarily unique, as two 
+			different files opened and closed in succession might have the same file descriptor id. 
 		:note: Using file descriptors directly is faster once new windows are mapped as it 
 			prevents the file to be opened again just for the purpose of mapping it."""
 		regions = self._fdict.get(path_or_fd)
@@ -448,41 +449,10 @@ class SlidingWindowMapManager(StaticWindowMapManager):
 		
 	__slots__ = tuple()
 	
-	def __init__(self, window_size = 0, max_memory_size = 0, max_open_handles = sys.maxint):
-		"""Adjusts the default window size to 0"""
+	def __init__(self, window_size = -1, max_memory_size = 0, max_open_handles = sys.maxint):
+		"""Adjusts the default window size to -1"""
 		super(SlidingWindowMapManager, self).__init__(window_size, max_memory_size, max_open_handles)
 	
-	def _collect_lru_region(self, size):
-		num_found = 0
-		while (size == 0) or (self._memory_size + size > self._max_memory_size):
-			lru_region = None
-			lru_list = None
-			for regions in self._fdict.itervalues():
-				for region in regions:
-					# check client count - consider that we keep one reference ourselves !
-					if (region.client_count()-2 == 0 and 
-						(lru_region is None or region._uc < lru_region._uc)):
-						lru_region = region
-						lru_list = regions
-					# END update lru_region
-				#END for each region
-			#END for each regions list
-			
-			if lru_region is None:
-				if num_found == 0 and size != 0:
-					raise RegionCollectionError("Didn't find any region to free")
-				#END raise if necessary
-				break
-			#END handle region not found
-			
-			num_found += 1
-			del(lru_list[lru_list.index(lru_region)])
-			self._memory_size -= lru_region.size()
-			self._handle_count -= 1
-		#END while there is more memory to free
-		
-		return num_found
-		
 	def _obtain_region(self, a, offset, size, flags, is_recursive):
 		# bisect to find an existing region. The c++ implementation cannot 
 		# do that as it uses a linked list for regions.

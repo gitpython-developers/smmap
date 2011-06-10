@@ -46,40 +46,47 @@ class TestMMan(TestBase):
 		WindowCursor(man)._destroy()
 		
 	def test_memory_manager(self):
-		man = SlidingWindowMapManager()
-		assert man.num_file_handles() == 0
-		assert man.num_open_files() == 0
-		assert man.window_size() > 0
-		assert man.mapped_memory_size() == 0
-		assert man.max_mapped_memory_size() > 0
+		slide_man = SlidingWindowMapManager()
+		static_man = StaticWindowMapManager()
 		
-		# collection doesn't raise in 'any' mode
-		man._collect_lru_region(0)
-		# doesn't raise if we are within the limit
-		man._collect_lru_region(10)
-		# raises outside of limit
-		self.failUnlessRaises(RegionCollectionError, man._collect_lru_region, sys.maxint)
-		
-		# use a region, verify most basic functionality
-		fc = FileCreator(self.k_window_test_size, "manager_test")
-		fd = os.open(fc.path, os.O_RDONLY)
-		for item in (fc.path, fd):
-			c = man.make_cursor(item)
-			assert c.path_or_fd() is item
-			assert c.use_region(10, 10).is_valid()
-			assert c.ofs_begin() == 10
-			assert c.size() == 10
-			assert c.buffer()[:] == open(fc.path, 'rb').read(20)[10:]
+		for man in (static_man, slide_man):
+			assert man.num_file_handles() == 0
+			assert man.num_open_files() == 0
+			winsize_cmp_val = 0
+			if isinstance(man, StaticWindowMapManager):
+				winsize_cmp_val = -1
+			#END handle window size
+			assert man.window_size() > winsize_cmp_val
+			assert man.mapped_memory_size() == 0
+			assert man.max_mapped_memory_size() > 0
 			
-			if isinstance(item, int):
-				self.failUnlessRaises(ValueError, c.path)
-			else:
-				self.failUnlessRaises(ValueError, c.fd)
-			#END handle value error
-		#END for each input
-		
-		os.close(fd)
-		
+			# collection doesn't raise in 'any' mode
+			man._collect_lru_region(0)
+			# doesn't raise if we are within the limit
+			man._collect_lru_region(10)
+			# raises outside of limit
+			self.failUnlessRaises(RegionCollectionError, man._collect_lru_region, sys.maxint)
+			
+			# use a region, verify most basic functionality
+			fc = FileCreator(self.k_window_test_size, "manager_test")
+			fd = os.open(fc.path, os.O_RDONLY)
+			for item in (fc.path, fd):
+				c = man.make_cursor(item)
+				assert c.path_or_fd() is item
+				assert c.use_region(10, 10).is_valid()
+				assert c.ofs_begin() == 10
+				assert c.size() == 10
+				assert c.buffer()[:] == open(fc.path, 'rb').read(20)[10:]
+				
+				if isinstance(item, int):
+					self.failUnlessRaises(ValueError, c.path)
+				else:
+					self.failUnlessRaises(ValueError, c.fd)
+				#END handle value error
+			#END for each input
+			os.close(fd)
+		# END for each manager type
+			
 	def test_memman_operation(self):
 		# test more access, force it to actually unmap regions
 		fc = FileCreator(self.k_window_test_size, "manager_operation_test")
