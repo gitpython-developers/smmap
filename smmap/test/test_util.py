@@ -2,6 +2,7 @@ from lib import TestBase, FileCreator
 
 from smmap.util import *
 
+import os
 import sys
 
 class TestMMan(TestBase):
@@ -86,13 +87,18 @@ class TestMMan(TestBase):
 		
 	def test_region_list(self):
 		fc = FileCreator(100, "sample_file")
-		ml = MappedRegionList(fc.path)
 		
-		assert ml.client_count() == 1
-		
-		assert len(ml) == 0
-		assert ml.path() == fc.path
-		assert ml.file_size() == fc.size
+		fd = os.open(fc.path, os.O_RDONLY)
+		for item in (fc.path, fd):
+			ml = MappedRegionList(item)
+			
+			assert ml.client_count() == 1
+			
+			assert len(ml) == 0
+			assert ml.path_or_fd() == item
+			assert ml.file_size() == fc.size
+		#END handle input
+		os.close(fd)
 		
 	def test_util(self):
 		assert isinstance(is_64_bit(), bool)	# just call it
