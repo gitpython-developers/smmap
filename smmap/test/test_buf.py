@@ -30,15 +30,18 @@ class TestBuf(TestBase):
 		# can call end access any time
 		buf.end_access()
 		buf.end_access()
+		assert len(buf) == 0
 		
 		# begin access can revive it, if the offset is suitable
 		offset = 100
 		assert buf.begin_access(c, fc.size) == False
 		assert buf.begin_access(c, offset) == True
+		assert len(buf) == fc.size - offset
 		assert buf.cursor().is_valid()
 		
 		# empty begin access keeps it valid on the same path, but alters the offset
 		assert buf.begin_access() == True
+		assert len(buf) == fc.size
 		assert buf.cursor().is_valid()
 		
 		# simple access
@@ -63,7 +66,7 @@ class TestBuf(TestBase):
 		# exagerate the manager's overhead, but measure the buffer overhead
 		# We do it once with an optimal setting, and with a worse manager which 
 		# will produce small mappings only !
-		max_num_accesses = 400
+		max_num_accesses = 100
 		fd = os.open(fc.path, os.O_RDONLY)
 		for item in (fc.path, fd):
 			for manager, man_id in ( (man_optimal, 'optimal'), 

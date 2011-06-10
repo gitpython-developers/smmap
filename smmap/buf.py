@@ -11,7 +11,10 @@ class MappedMemoryBuffer(object):
 	
 	The buffer is relative, that is if you map an offset, index 0 will map to the 
 	first byte at the offset you used during initialization or begin_access"""
-	__slots__ = '_c'		# our cursor
+	__slots__ = (
+				'_c',			# our cursor
+				'_size', 		# our supposed size
+				)
 	
 	
 	def __init__(self, cursor = None, offset = 0, size = sys.maxint, flags = 0):
@@ -20,6 +23,10 @@ class MappedMemoryBuffer(object):
 			If None, you have call begin_access before using the buffer and provide a cursor 
 		:param offset: absolute offset in bytes
 		:param size: the total size of the mapping. Defaults to the maximum possible size
+			From that point on, the __len__ of the buffer will be the given size or the file size.
+			If the size is larger than the mappable area, you can only access the actually available
+			area, although the length of the buffer is reported to be your given size.
+			Hence it is in your own interest to provide a proper size !
 		:param flags: Additional flags to be passed to os.open
 		:raise ValueError: if the buffer could not achieve a valid state"""
 		self._c = cursor
@@ -29,6 +36,9 @@ class MappedMemoryBuffer(object):
 
 	def __del__(self):
 		self.end_access()
+		
+	def __len__(self):
+		return self._size
 		
 	def __getitem__(self, i):
 		c = self._c
@@ -76,7 +86,18 @@ class MappedMemoryBuffer(object):
 		
 		# reuse existing cursors if possible
 		if self._c is not None and self._c.is_associated():
-			return self._c.use_region(offset, size, flags).is_valid()
+			res = self._c.use_region(offset, size, flags).is_valid()
+			if res:
+				# if given size is too large or default, we computer a proper size
+				# If its smaller, we assume the combination between offset and size
+				# as chosen by the user is correct and use it !
+				# If not, the user is in trouble.
+				if size > self._c.file_size():
+					size = self._c.file_size() - offset
+				#END handle size
+				self._size = size 
+			#END set size
+			return res
 		return False
 		
 	def end_access(self):
@@ -85,6 +106,7 @@ class MappedMemoryBuffer(object):
 		resources to be freed.
 		
 		Once you called end_access, you must call begin access before reusing this instance!"""
+		self._size = 0
 		if self._c is not None:
 			self._c.unuse_region()
 		#END unuse region
