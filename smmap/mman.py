@@ -4,7 +4,6 @@ from util import (
 					MappedRegion,
 					MappedRegionList,
 					is_64_bit,
-					PAGESIZE
 				)
 
 from exc import RegionCollectionError
@@ -446,10 +445,6 @@ class MappedMemoryManager(object):
 		""":return: maximum amount of memory we may allocate"""
 		return self._max_memory_size
 	
-	def page_size(self):
-		""":return: size of a single memory page in bytes"""
-		return PAGESIZE
-		
 	#} END interface
 	
 	#{ Special Purpose Interface

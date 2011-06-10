@@ -3,22 +3,22 @@ import os
 import sys
 import mmap
 
-from mmap import PAGESIZE, mmap, ACCESS_READ
+from mmap import ALLOCATIONGRANULARITY, mmap, ACCESS_READ
 from sys import getrefcount
 
-__all__ = [	"align_to_page", "is_64_bit",
-			"MemoryWindow", "MappedRegion", "MappedRegionList", "PAGESIZE"]
+__all__ = [	"align_to_mmap", "is_64_bit",
+			"MemoryWindow", "MappedRegion", "MappedRegionList", "ALLOCATIONGRANULARITY"]
 
 #{ Utilities
 
-def align_to_page(num, round_up):
+def align_to_mmap(num, round_up):
 	"""Align the given integer number to the closest page offset, which usually is 4096 bytes.
 	:param round_up: if True, the next higher multiple of page size is used, otherwise
 		the lower page_size will be used (i.e. if True, 1 becomes 4096, otherwise it becomes 0)
 	:return: num rounded to closest page"""
-	res = (num / PAGESIZE) * PAGESIZE;
+	res = (num / ALLOCATIONGRANULARITY) * ALLOCATIONGRANULARITY;
 	if round_up and (res != num):
-		res += PAGESIZE;
+		res += ALLOCATIONGRANULARITY
 	#END handle size
 	return res;
 	
@@ -55,10 +55,10 @@ class MemoryWindow(object):
 
 	def align(self):
 		"""Assures the previous window area is contained in the new one"""
-		nofs = align_to_page(self.ofs, 0)
+		nofs = align_to_mmap(self.ofs, 0)
 		self.size += self.ofs - nofs	# keep size constant
 		self.ofs = nofs
-		self.size = align_to_page(self.size, 1)
+		self.size = align_to_mmap(self.size, 1)
 
 	def extend_left_to(self, window, max_size):
 		"""Adjust the offset to start where the given window on our left ends if possible, 

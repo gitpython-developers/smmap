@@ -97,7 +97,7 @@ class TestBuf(TestBase):
 					assert manager.num_file_handles()
 					assert manager.collect()
 					assert manager.num_file_handles() == 0
-					elapsed  = time() - st
+					elapsed  = max(time() - st, 0.001)	# prevent zero division errors on windows
 					mb = float(1000*1000)
 					mode_str = (access_mode and "slice") or "single byte"
 					sys.stderr.write("%s: Made %i random %s accesses to buffer created from %s reading a total of %f mb in %f s (%f mb/s)\n" 

@@ -2,7 +2,7 @@ from lib import TestBase, FileCreator
 
 from smmap.mman import *
 from smmap.mman import MemoryCursor
-from smmap.util import PAGESIZE, align_to_page
+from smmap.util import align_to_mmap
 from smmap.exc import RegionCollectionError
 
 from random import randint
@@ -52,7 +52,6 @@ class TestMMan(TestBase):
 		assert man.window_size() > 0
 		assert man.mapped_memory_size() == 0
 		assert man.max_mapped_memory_size() > 0
-		assert man.page_size() == PAGESIZE
 		
 		# collection doesn't raise in 'any' mode
 		man._collect_lru_region(0)
@@ -102,7 +101,7 @@ class TestMMan(TestBase):
 			assert c.size() == size
 			assert c.ofs_begin() == base_offset
 			assert rr().ofs_begin() == 0		# it was aligned and expanded
-			assert rr().size() == align_to_page(man.window_size(), True)	# but isn't larger than the max window (aligned)
+			assert rr().size() == align_to_mmap(man.window_size(), True)	# but isn't larger than the max window (aligned)
 			
 			assert c.buffer()[:] == data[base_offset:base_offset+size] 
 			
@@ -164,7 +163,7 @@ class TestMMan(TestBase):
 				assert includes_ofs(base_offset+csize-1)
 				assert not includes_ofs(base_offset+csize)
 			# END while we should do an access
-			elapsed = time() - st
+			elapsed = max(time() - st, 0.001) # prevent zero divison errors on windows
 			mb = float(1000 * 1000)
 			sys.stderr.write("Read %i mb of memory with %i random on cursor initialized with %s accesses in %fs (%f mb/s)\n" 
 							% (memory_read/mb, max_random_accesses, type(item), elapsed, (memory_read/mb)/elapsed))

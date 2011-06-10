@@ -1,6 +1,7 @@
 from lib import TestBase, FileCreator
 
 from smmap.util import *
+from mmap import ALLOCATIONGRANULARITY
 
 import os
 import sys
@@ -50,12 +51,12 @@ class TestMMan(TestBase):
 		assert wr.ofs == wc2.ofs_end()
 		
 		wc.align()
-		assert wc.ofs == 0 and wc.size == PAGESIZE*2
+		assert wc.ofs == 0 and wc.size == align_to_mmap(wc.size, True)
 		
 	def test_region(self):
 		fc = FileCreator(self.k_window_test_size, "window_test")
 		half_size = fc.size / 2
-		rofs = align_to_page(4200, False)
+		rofs = align_to_mmap(4200, False)
 		rfull = MappedRegion(fc.path, 0, fc.size)
 		rhalfofs = MappedRegion(fc.path, rofs, fc.size)
 		rhalfsize = MappedRegion(fc.path, 0, half_size)
@@ -69,7 +70,13 @@ class TestMMan(TestBase):
 		
 		assert rfull.includes_ofs(0) and rfull.includes_ofs(fc.size-1) and rfull.includes_ofs(half_size)
 		assert not rfull.includes_ofs(-1) and not rfull.includes_ofs(sys.maxint)
-		assert rhalfofs.includes_ofs(rofs) and not rhalfofs.includes_ofs(0)
+		# with the values we have, this test only works on windows where an alignment 
+		# size of 4096 is assumed.
+		if sys.platform == 'win32':
+			assert rhalfofs.includes_ofs(rofs) and rhalfofs.includes_ofs(0)
+		else:
+			assert rhalfofs.includes_ofs(rofs) and not rhalfofs.includes_ofs(0)
+		#END handle platforms
 		
 		# auto-refcount
 		assert rfull.client_count() == 1
@@ -102,6 +109,6 @@ class TestMMan(TestBase):
 		
 	def test_util(self):
 		assert isinstance(is_64_bit(), bool)	# just call it
-		assert align_to_page(1, False) == 0
-		assert align_to_page(1, True) == PAGESIZE
+		assert align_to_mmap(1, False) == 0
+		assert align_to_mmap(1, True) == ALLOCATIONGRANULARITY
 		
