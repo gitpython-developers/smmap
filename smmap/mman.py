@@ -10,7 +10,7 @@ from exc import RegionCollectionError
 from weakref import ref
 import sys
 
-__all__ = ["SlidingWindowMapManager"]
+__all__ = ["StaticWindowMapManager", "SlidingWindowMapManager"]
 #{ Utilities
 
 #}END utilities
@@ -125,11 +125,11 @@ class MemoryCursor(object):
 
 	def buffer(self):
 		"""Return a buffer object which allows access to our memory region from our offset
-		to the window size. Please note that it might be smaller than you requested
+		to the window size. Please note that it might be smaller than you requested when calling use_region()
 		:note: You can only obtain a buffer if this instance is_valid() !
 		:note: buffers should not be cached passed the duration of your access as it will 
 			prevent resources from being freed even though they might not be accounted for anymore !"""
-		return buffer(self._region.buffer(), self._ofs, self._size)
+		return buffer(self._region.map(), self._ofs, self._size)
 
 	def is_valid(self):
 		""":return: True if we have a valid and usable region"""
@@ -195,19 +195,17 @@ class MemoryCursor(object):
 	#} END interface
 	
 	
+class StaticWindowMapManager(object):
+	"""Provides a manager which will produce single size cursors that are allowed
+	to always map the whole file.
 	
-class SlidingWindowMapManager(object):
-	"""Maintains a list of ranges of mapped memory regions in one or more files and allows to easily 
-	obtain additional regions assuring there is no overlap.
-	Once a certain memory limit is reached globally, or if there cannot be more open file handles 
-	which result from each mmap call, the least recently used, and currently unused mapped regions
-	are unloaded automatically.
+	Clients must be written to specifically know that they are accessing their data
+	through a StaticWindowMapManager, as they otherwise have to deal with their window size.
 	
-	:note: currently not thread-safe !
-	:note: in the current implementation, we will automatically unload windows if we either cannot
-		create more memory maps (as the open file handles limit is hit) or if we have allocated more than 
-		a safe amount of memory already, which would possibly cause memory allocations to fail as our address
-		space is full."""
+	These clients would have to use a SlidingWindowMapBuffer to hide this fact.
+	
+	This type will always use a maximum window size, and optimize certain methods to 
+	acomodate this fact"""
 		
 	__slots__ = [
 					'_fdict', 			# mapping of path -> MapRegionList
@@ -222,11 +220,12 @@ class SlidingWindowMapManager(object):
 	MapRegionListCls = MapRegionList
 	MapWindowCls = MapWindow
 	MapRegionCls = MapRegion
+	MemoryCursorCls = MemoryCursor
 	#} END configuration
 				
 	_MB_in_bytes = 1024 * 1024
 				
-	def __init__(self, window_size = 0, max_memory_size = 0, max_open_handles = sys.maxint):
+	def __init__(self, window_size = sys.maxint, max_memory_size = 0, max_open_handles = sys.maxint):
 		"""initialize the manager with the given parameters.
 		:param window_size: if 0, a default window size will be chosen depending on 
 			the operating system's architechture. It will internally be quantified to a multiple of the page size
@@ -258,6 +257,8 @@ class SlidingWindowMapManager(object):
 			self._max_memory_size = coeff * self._MB_in_bytes
 		#END handle max memory size
 	
+	#{ Internal Methods
+	
 	def _collect_lru_region(self, size):
 		"""Unmap the region which was least-recently used and has no client
 		:param size: size of the region we want to map next (assuming its not already mapped partially or full
@@ -265,6 +266,117 @@ class SlidingWindowMapManager(object):
 		:raise RegionCollectionError:
 		:return: Amount of freed regions
 		:todo: implement a case where all unusued regions are discarded efficiently. Currently its only brute force"""
+		raise NotImplementedError()
+		
+	def _obtain_region(self, a, offset, size, flags, is_recursive):
+		"""Utilty to create a new region - for more information on the parameters, 
+		see MapCursor.use_region.
+		:param a: A regions (a)rray
+		:return: The newly created region"""
+		raise NotImplementedError()
+
+	#}END internal methods
+	
+	#{ Interface 
+	def make_cursor(self, path_or_fd):
+		""":return: a cursor pointing to the given path or file descriptor. 
+		It can be used to map new regions of the file into memory
+		:note: if a file descriptor is given, it is assumed to be open and valid,
+			but may be closed afterwards. To refer to the same file, you may reuse
+			your existing file descriptor, but keep in mind that new windows can only
+			be mapped as long as it stays valid. This is why the using actual file paths
+			are preferred unless you plan to keep the file descriptor open.
+		:note: Using file descriptors directly is faster once new windows are mapped as it 
+			prevents the file to be opened again just for the purpose of mapping it."""
+		regions = self._fdict.get(path_or_fd)
+		if regions is None:
+			regions = self.MapRegionListCls(path_or_fd)
+			self._fdict[path_or_fd] = regions
+		# END obtain region for path
+		return self.MemoryCursorCls(self, regions)
+		
+	def collect(self):
+		"""Collect all available free-to-collect mapped regions
+		:return: Amount of freed handles"""
+		return self._collect_lru_region(0)
+		
+	def num_file_handles(self):
+		""":return: amount of file handles in use. Each mapped region uses one file handle"""
+		return self._handle_count
+	
+	def num_open_files(self):
+		"""Amount of opened files in the system"""
+		return reduce(lambda x,y: x+y, (1 for rlist in self._fdict.itervalues() if len(rlist) > 0), 0)
+		
+	def window_size(self):
+		""":return: size of each window when allocating new regions"""
+		return self._window_size
+		
+	def mapped_memory_size(self):
+		""":return: amount of bytes currently mapped in total"""
+		return self._memory_size
+		
+	def max_file_handles(self):
+		""":return: maximium amount of handles we may have opened"""
+		return self._max_handle_count
+		
+	def max_mapped_memory_size(self):
+		""":return: maximum amount of memory we may allocate"""
+		return self._max_memory_size
+	
+	#} END interface
+	
+	#{ Special Purpose Interface
+	
+	def force_map_handle_removal_win(self, base_path):
+		"""ONLY AVAILABLE ON WINDOWS
+		On windows removing files is not allowed if anybody still has it opened.
+		If this process is ourselves, and if the whole process uses this memory
+		manager (as far as the parent framework is concerned) we can enforce
+		closing all memory maps whose path matches the given base path to 
+		allow the respective operation after all.
+		The respective system must NOT access the closed memory regions anymore !
+		This really may only be used if you know that the items which keep 
+		the cursors alive will not be using it anymore. They need to be recreated !
+		:return: Amount of closed handles
+		:note: does nothing on non-windows platforms"""
+		if sys.platform != 'win32':
+			return
+		#END early bailout
+		
+		num_closed = 0
+		for path, rlist in self._fdict.iteritems():
+			if path.startswith(base_path):
+				for region in rlist:
+					region._mf.close()
+					num_closed += 1
+			#END path matches 
+		#END for each path
+		return num_closed
+	#} END special purpose interface
+	
+	
+	
+class SlidingWindowMapManager(StaticWindowMapManager):
+	"""Maintains a list of ranges of mapped memory regions in one or more files and allows to easily 
+	obtain additional regions assuring there is no overlap.
+	Once a certain memory limit is reached globally, or if there cannot be more open file handles 
+	which result from each mmap call, the least recently used, and currently unused mapped regions
+	are unloaded automatically.
+	
+	:note: currently not thread-safe !
+	:note: in the current implementation, we will automatically unload windows if we either cannot
+		create more memory maps (as the open file handles limit is hit) or if we have allocated more than 
+		a safe amount of memory already, which would possibly cause memory allocations to fail as our address
+		space is full."""
+		
+	__slots__ = tuple()
+	
+	def __init__(self, window_size = 0, max_memory_size = 0, max_open_handles = sys.maxint):
+		"""Adjusts the default window size to 0"""
+		super(SlidingWindowMapManager, self).__init__(window_size, max_memory_size, max_open_handles)
+	
+	def _collect_lru_region(self, size):
 		num_found = 0
 		while (size == 0) or (self._memory_size + size > self._max_memory_size):
 			lru_region = None
@@ -296,10 +408,6 @@ class SlidingWindowMapManager(object):
 		return num_found
 		
 	def _obtain_region(self, a, offset, size, flags, is_recursive):
-		"""Utilty to create a new region - for more information on the parameters, 
-		see MapCursor.use_region.
-		:param a: A regions (a)rray
-		:return: The newly created region"""
 		# bisect to find an existing region. The c++ implementation cannot 
 		# do that as it uses a linked list for regions.
 		r = None
@@ -400,80 +508,4 @@ class SlidingWindowMapManager(object):
 		# END create new region
 		return r
 		
-	#{ Interface 
-	def make_cursor(self, path_or_fd):
-		""":return: a cursor pointing to the given path or file descriptor. 
-		It can be used to map new regions of the file into memory
-		:note: if a file descriptor is given, it is assumed to be open and valid,
-			but may be closed afterwards. To refer to the same file, you may reuse
-			your existing file descriptor, but keep in mind that new windows can only
-			be mapped as long as it stays valid. This is why the using actual file paths
-			are preferred unless you plan to keep the file descriptor open.
-		:note: Using file descriptors directly is faster once new windows are mapped as it 
-			prevents the file to be opened again just for the purpose of mapping it."""
-		regions = self._fdict.get(path_or_fd)
-		if regions is None:
-			regions = self.MapRegionListCls(path_or_fd)
-			self._fdict[path_or_fd] = regions
-		# END obtain region for path
-		return MemoryCursor(self, regions)
-		
-	def collect(self):
-		"""Collect all available free-to-collect mapped regions
-		:return: Amount of freed handles"""
-		return self._collect_lru_region(0)
-		
-	def num_file_handles(self):
-		""":return: amount of file handles in use. Each mapped region uses one file handle"""
-		return self._handle_count
 	
-	def num_open_files(self):
-		"""Amount of opened files in the system"""
-		return reduce(lambda x,y: x+y, (1 for rlist in self._fdict.itervalues() if len(rlist) > 0), 0)
-		
-	def window_size(self):
-		""":return: size of each window when allocating new regions"""
-		return self._window_size
-		
-	def mapped_memory_size(self):
-		""":return: amount of bytes currently mapped in total"""
-		return self._memory_size
-		
-	def max_file_handles(self):
-		""":return: maximium amount of handles we may have opened"""
-		return self._max_handle_count
-		
-	def max_mapped_memory_size(self):
-		""":return: maximum amount of memory we may allocate"""
-		return self._max_memory_size
-	
-	#} END interface
-	
-	#{ Special Purpose Interface
-	
-	def force_map_handle_removal_win(self, base_path):
-		"""ONLY AVAILABLE ON WINDOWS
-		On windows removing files is not allowed if anybody still has it opened.
-		If this process is ourselves, and if the whole process uses this memory
-		manager (as far as the parent framework is concerned) we can enforce
-		closing all memory maps whose path matches the given base path to 
-		allow the respective operation after all.
-		The respective system must NOT access the closed memory regions anymore !
-		This really may only be used if you know that the items which keep 
-		the cursors alive will not be using it anymore. They need to be recreated !
-		:return: Amount of closed handles
-		:note: does nothing on non-windows platforms"""
-		if sys.platform != 'win32':
-			return
-		#END early bailout
-		
-		num_closed = 0
-		for path, rlist in self._fdict.iteritems():
-			if path.startswith(base_path):
-				for region in rlist:
-					region._mf.close()
-					num_closed += 1
-			#END path matches 
-		#END for each path
-		return num_closed
-	#} END special purpose interface

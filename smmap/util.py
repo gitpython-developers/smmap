@@ -149,8 +149,8 @@ class MapRegion(object):
 		
 	#{ Interface
 		
-	def buffer(self):
-		""":return: a sliceable buffer which can be used to access the mapped memory"""
+	def map(self):
+		""":return: a memory map containing the memory"""
 		return self._mf
 		
 	def ofs_begin(self):
