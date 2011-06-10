@@ -5,3 +5,7 @@ __contact__ = "byronimo@gmail.com"
 __homepage__ = "https://github.com/Byron/smmap"
 version_info = (0, 8, 0)
 __version__ = '.'.join(str(i) for i in version_info)
+
+# make everything available in root package for convenience
+from mman import *
+from buf import *
