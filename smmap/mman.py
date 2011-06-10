@@ -15,7 +15,7 @@ __all__ = ["SlidingWindowMapManager"]
 
 #}END utilities
 
-class SlidingCursor(object):
+class MemoryCursor(object):
 	"""Pointer into the mapped region of the memory manager, keeping the current window 
 	alive until it is destroyed.
 	
@@ -27,11 +27,6 @@ class SlidingCursor(object):
 					'_ofs',		# relative offset from the actually mapped area to our start area
 					'_size'		# maximum size we should provide
 				)
-	
-	#{ Configuration
-	MapWindowCls = MapWindow
-	MapRegionCls = MapRegion
-	#} END configuration
 	
 	def __init__(self, manager = None, regions = None):
 		self._manager = manager
@@ -82,7 +77,7 @@ class SlidingCursor(object):
 		self._destroy()
 		self._copy_from(rhs)
 		
-	def use_region(self, offset, size, flags = 0, _is_recursive=False):
+	def use_region(self, offset, size, flags = 0):
 		"""Assure we point to a window which allows access to the given offset into the file
 		:param offset: absolute offset in bytes into the file
 		:param size: amount of bytes to map
@@ -104,115 +99,14 @@ class SlidingCursor(object):
 			# END handle existing region
 		# END check existing region
 		
+		# offset too large ?
+		if offset >= self._rlist.file_size():
+			return self
+		#END handle offset
+		
 		if need_region:
-			window_size = man._window_size
-			
-			# abort on offsets beyond our mapped file's size - currently we are invalid
-			if offset >= self.file_size():
-				return self
-			# END handle offset too large
-			
-			# bisect to find an existing region. The c++ implementation cannot 
-			# do that as it uses a linked list for regions.
-			existing_region = None
-			a = self._rlist
-			lo = 0
-			hi = len(a)
-			while lo < hi:
-				mid = (lo+hi)//2
-				ofs = a[mid]._b
-				if ofs <= offset:
-					if a[mid].includes_ofs(offset):
-						existing_region = a[mid]
-						break
-					#END have region
-					lo = mid+1
-				else:
-					hi = mid
-				#END handle position
-			#END while bisecting
-			
-			if existing_region is None:
-				left = self.MapWindowCls(0, 0)
-				mid = self.MapWindowCls(offset, size)
-				right = self.MapWindowCls(self.file_size(), 0)
-				
-				# we want to honor the max memory size, and assure we have anough
-				# memory available
-				# Save calls !
-				if self._manager._memory_size + window_size > self._manager._max_memory_size:
-					man._collect_lru_region(window_size)
-				#END handle collection
-				
-				# we assume the list remains sorted by offset
-				insert_pos = 0
-				len_regions = len(a)
-				if len_regions == 1:
-					if a[0]._b <= offset:
-						insert_pos = 1
-					#END maintain sort
-				else:
-					# find insert position
-					insert_pos = len_regions
-					for i, region in enumerate(a):
-						if region._b > offset:
-							insert_pos = i
-							break
-						#END if insert position is correct
-					#END for each region
-				# END obtain insert pos
-				
-				# adjust the actual offset and size values to create the largest 
-				# possible mapping
-				if insert_pos == 0:
-					if len_regions:
-						right = self.MapWindowCls.from_region(a[insert_pos])
-					#END adjust right side 
-				else:
-					if insert_pos != len_regions:
-						right = self.MapWindowCls.from_region(a[insert_pos])
-					# END adjust right window
-					left = self.MapWindowCls.from_region(a[insert_pos - 1])
-				#END adjust surrounding windows
-				
-				mid.extend_left_to(left, window_size)
-				mid.extend_right_to(right, window_size)
-				mid.align()
-				
-				# it can happen that we align beyond the end of the file
-				if mid.ofs_end() > right.ofs:
-					mid.size = right.ofs - mid.ofs
-				#END readjust size
-				
-				# insert new region at the right offset to keep the order
-				try:
-					if man._handle_count >= man._max_handle_count:
-						raise Exception
-					#END assert own imposed max file handles
-					self._region = self.MapRegionCls(a.path_or_fd(), mid.ofs, mid.size, flags)
-				except Exception:
-					# apparently we are out of system resources or hit a limit
-					# As many more operations are likely to fail in that condition (
-					# like reading a file from disk, etc) we free up as much as possible
-					# As this invalidates our insert position, we have to recurse here
-					# NOTE: The c++ version uses a linked list to curcumvent this, but
-					# using that in python is probably too slow anyway
-					if _is_recursive:
-						# we already tried this, and still have no success in obtaining 
-						# a mapping. This is an exception, so we propagate it
-						raise
-					#END handle existing recursion
-					man._collect_lru_region(0)
-					return self.use_region(offset, size, flags, True) 
-				#END handle exceptions
-				
-				man._handle_count += 1
-				man._memory_size += self._region.size()
-				a.insert(insert_pos, self._region)
-			else:
-				self._region = existing_region
-			#END need region handling
-		#END handle acquire region
+			self._region = man._obtain_region(self._rlist, offset, size, flags, False)
+		#END need region handling
 		
 		self._region.increment_usage_count()
 		self._ofs = offset - self._region._b
@@ -301,6 +195,7 @@ class SlidingCursor(object):
 	#} END interface
 	
 	
+	
 class SlidingWindowMapManager(object):
 	"""Maintains a list of ranges of mapped memory regions in one or more files and allows to easily 
 	obtain additional regions assuring there is no overlap.
@@ -325,6 +220,8 @@ class SlidingWindowMapManager(object):
 				
 	#{ Configuration
 	MapRegionListCls = MapRegionList
+	MapWindowCls = MapWindow
+	MapRegionCls = MapRegion
 	#} END configuration
 				
 	_MB_in_bytes = 1024 * 1024
@@ -398,6 +295,111 @@ class SlidingWindowMapManager(object):
 		
 		return num_found
 		
+	def _obtain_region(self, a, offset, size, flags, is_recursive):
+		"""Utilty to create a new region - for more information on the parameters, 
+		see MapCursor.use_region.
+		:param a: A regions (a)rray
+		:return: The newly created region"""
+		# bisect to find an existing region. The c++ implementation cannot 
+		# do that as it uses a linked list for regions.
+		r = None
+		lo = 0
+		hi = len(a)
+		while lo < hi:
+			mid = (lo+hi)//2
+			ofs = a[mid]._b
+			if ofs <= offset:
+				if a[mid].includes_ofs(offset):
+					r = a[mid]
+					break
+				#END have region
+				lo = mid+1
+			else:
+				hi = mid
+			#END handle position
+		#END while bisecting
+		
+		if r is None:
+			window_size = self._window_size
+			left = self.MapWindowCls(0, 0)
+			mid = self.MapWindowCls(offset, size)
+			right = self.MapWindowCls(a.file_size(), 0)
+			
+			# we want to honor the max memory size, and assure we have anough
+			# memory available
+			# Save calls !
+			if self._memory_size + window_size > self._max_memory_size:
+				self._collect_lru_region(window_size)
+			#END handle collection
+			
+			# we assume the list remains sorted by offset
+			insert_pos = 0
+			len_regions = len(a)
+			if len_regions == 1:
+				if a[0]._b <= offset:
+					insert_pos = 1
+				#END maintain sort
+			else:
+				# find insert position
+				insert_pos = len_regions
+				for i, region in enumerate(a):
+					if region._b > offset:
+						insert_pos = i
+						break
+					#END if insert position is correct
+				#END for each region
+			# END obtain insert pos
+			
+			# adjust the actual offset and size values to create the largest 
+			# possible mapping
+			if insert_pos == 0:
+				if len_regions:
+					right = self.MapWindowCls.from_region(a[insert_pos])
+				#END adjust right side 
+			else:
+				if insert_pos != len_regions:
+					right = self.MapWindowCls.from_region(a[insert_pos])
+				# END adjust right window
+				left = self.MapWindowCls.from_region(a[insert_pos - 1])
+			#END adjust surrounding windows
+			
+			mid.extend_left_to(left, window_size)
+			mid.extend_right_to(right, window_size)
+			mid.align()
+			
+			# it can happen that we align beyond the end of the file
+			if mid.ofs_end() > right.ofs:
+				mid.size = right.ofs - mid.ofs
+			#END readjust size
+			
+			# insert new region at the right offset to keep the order
+			try:
+				if self._handle_count >= self._max_handle_count:
+					raise Exception
+				#END assert own imposed max file handles
+				r = self.MapRegionCls(a.path_or_fd(), mid.ofs, mid.size, flags)
+			except Exception:
+				# apparently we are out of system resources or hit a limit
+				# As many more operations are likely to fail in that condition (
+				# like reading a file from disk, etc) we free up as much as possible
+				# As this invalidates our insert position, we have to recurse here
+				# NOTE: The c++ version uses a linked list to curcumvent this, but
+				# using that in python is probably too slow anyway
+				if is_recursive:
+					# we already tried this, and still have no success in obtaining 
+					# a mapping. This is an exception, so we propagate it
+					raise
+				#END handle existing recursion
+				self._collect_lru_region(0)
+				return self._obtain_region(a, offset, size, flags, True) 
+			#END handle exceptions
+			
+			self._handle_count += 1
+			self._memory_size += r.size()
+			a.insert(insert_pos, r)
+		# END create new region
+		return r
+		
 	#{ Interface 
 	def make_cursor(self, path_or_fd):
 		""":return: a cursor pointing to the given path or file descriptor. 
@@ -414,7 +416,7 @@ class SlidingWindowMapManager(object):
 			regions = self.MapRegionListCls(path_or_fd)
 			self._fdict[path_or_fd] = regions
 		# END obtain region for path
-		return SlidingCursor(self, regions)
+		return MemoryCursor(self, regions)
 		
 	def collect(self):
 		"""Collect all available free-to-collect mapped regions

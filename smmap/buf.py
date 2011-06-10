@@ -1,5 +1,5 @@
 """Module with a simple buffer implementation using the memory manager"""
-from mman import SlidingCursor
+from mman import MemoryCursor
 
 import sys
 
