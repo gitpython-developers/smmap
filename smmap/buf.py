@@ -1,11 +1,11 @@
 """Module with a simple buffer implementation using the memory manager"""
-from mman import MemoryCursor
+from mman import SlidingCursor
 
 import sys
 
-__all__ = ["MappedMemoryBuffer"]
+__all__ = ["SlidingWindowMapBuffer"]
 
-class MappedMemoryBuffer(object):
+class SlidingWindowMapBuffer(object):
 	"""A buffer like object which allows direct byte-wise object and slicing into 
 	memory of a mapped file. The mapping is controlled by the provided cursor.
 	

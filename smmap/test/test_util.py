@@ -8,10 +8,10 @@ import sys
 class TestMMan(TestBase):
 	
 	def test_window(self):
-		wl = MemoryWindow(0, 1)	 	# left
-		wc = MemoryWindow(1, 1)		# center
-		wc2 = MemoryWindow(10, 5)		# another center
-		wr = MemoryWindow(8000, 50)	# right
+		wl = MapWindow(0, 1)	 	# left
+		wc = MapWindow(1, 1)		# center
+		wc2 = MapWindow(10, 5)		# another center
+		wr = MapWindow(8000, 50)	# right
 		
 		assert wl.ofs_end() == 1
 		assert wc.ofs_end() == 2
@@ -56,9 +56,9 @@ class TestMMan(TestBase):
 		fc = FileCreator(self.k_window_test_size, "window_test")
 		half_size = fc.size / 2
 		rofs = align_to_mmap(4200, False)
-		rfull = MappedRegion(fc.path, 0, fc.size)
-		rhalfofs = MappedRegion(fc.path, rofs, fc.size)
-		rhalfsize = MappedRegion(fc.path, 0, half_size)
+		rfull = MapRegion(fc.path, 0, fc.size)
+		rhalfofs = MapRegion(fc.path, rofs, fc.size)
+		rhalfsize = MapRegion(fc.path, 0, half_size)
 		
 		# offsets
 		assert rfull.ofs_begin() == 0 and rfull.size() == fc.size
@@ -88,7 +88,7 @@ class TestMMan(TestBase):
 		assert rfull.usage_count() == 1
 		
 		# window constructor
-		w = MemoryWindow.from_region(rfull)
+		w = MapWindow.from_region(rfull)
 		assert w.ofs == rfull.ofs_begin() and w.ofs_end() == rfull.ofs_end()
 		
 	def test_region_list(self):
@@ -96,7 +96,7 @@ class TestMMan(TestBase):
 		
 		fd = os.open(fc.path, os.O_RDONLY)
 		for item in (fc.path, fd):
-			ml = MappedRegionList(item)
+			ml = MapRegionList(item)
 			
 			assert ml.client_count() == 1
 			

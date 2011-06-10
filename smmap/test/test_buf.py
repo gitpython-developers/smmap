@@ -1,6 +1,6 @@
 from lib import TestBase, FileCreator
 
-from smmap.mman import MappedMemoryManager
+from smmap.mman import SlidingWindowMapManager
 from smmap.buf import *
 
 from random import randint
@@ -9,8 +9,8 @@ import sys
 import os
 
 
-man_optimal = MappedMemoryManager()
-man_worst_case = MappedMemoryManager(	window_size=TestBase.k_window_test_size/100, 
+man_optimal = SlidingWindowMapManager()
+man_worst_case = SlidingWindowMapManager(	window_size=TestBase.k_window_test_size/100, 
 									max_memory_size=TestBase.k_window_test_size/3, 
 									max_open_handles=15)
 
@@ -21,10 +21,10 @@ class TestBuf(TestBase):
 		
 		# invalid paths fail upon construction
 		c = man_optimal.make_cursor(fc.path)
-		self.failUnlessRaises(ValueError, MappedMemoryBuffer, type(c)())			# invalid cursor
-		self.failUnlessRaises(ValueError, MappedMemoryBuffer, c, fc.size)		# offset too large
+		self.failUnlessRaises(ValueError, SlidingWindowMapBuffer, type(c)())			# invalid cursor
+		self.failUnlessRaises(ValueError, SlidingWindowMapBuffer, c, fc.size)		# offset too large
 		
-		buf = MappedMemoryBuffer()												# can create uninitailized buffers
+		buf = SlidingWindowMapBuffer()												# can create uninitailized buffers
 		assert buf.cursor() is None
 		
 		# can call end access any time
@@ -71,7 +71,7 @@ class TestBuf(TestBase):
 		for item in (fc.path, fd):
 			for manager, man_id in ( (man_optimal, 'optimal'), 
 									(man_worst_case, 'worst case')):
-				buf = MappedMemoryBuffer(manager.make_cursor(item))
+				buf = SlidingWindowMapBuffer(manager.make_cursor(item))
 				assert manager.num_file_handles() == 1
 				for access_mode in range(2):	# single, multi
 					num_accesses_left = max_num_accesses

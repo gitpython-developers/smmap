@@ -1,7 +1,7 @@
 from lib import TestBase, FileCreator
 
 from smmap.mman import *
-from smmap.mman import MemoryCursor
+from smmap.mman import SlidingCursor
 from smmap.util import align_to_mmap
 from smmap.exc import RegionCollectionError
 
@@ -16,8 +16,8 @@ class TestMMan(TestBase):
 	def test_cursor(self):
 		fc = FileCreator(self.k_window_test_size, "cursor_test")
 		
-		man = MappedMemoryManager()
-		ci = MemoryCursor(man)	# invalid cursor
+		man = SlidingWindowMapManager()
+		ci = SlidingCursor(man)	# invalid cursor
 		assert not ci.is_valid()
 		assert not ci.is_associated()
 		assert ci.size() == 0		# this is cached, so we can query it in invalid state
@@ -43,10 +43,10 @@ class TestMMan(TestBase):
 		
 		# destruction is fine (even multiple times)
 		cv._destroy()
-		MemoryCursor(man)._destroy()
+		SlidingCursor(man)._destroy()
 		
 	def test_memory_manager(self):
-		man = MappedMemoryManager()
+		man = SlidingWindowMapManager()
 		assert man.num_file_handles() == 0
 		assert man.num_open_files() == 0
 		assert man.window_size() > 0
@@ -82,7 +82,7 @@ class TestMMan(TestBase):
 			
 			# small windows, a reasonable max memory. Not too many regions at once
 			max_num_handles = 15
-			man = MappedMemoryManager(window_size=fc.size / 100, max_memory_size=fc.size / 3, max_open_handles=max_num_handles)
+			man = SlidingWindowMapManager(window_size=fc.size / 100, max_memory_size=fc.size / 3, max_open_handles=max_num_handles)
 			c = man.make_cursor(item)
 			
 			# still empty (more about that is tested in test_memory_manager()

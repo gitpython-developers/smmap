@@ -15,7 +15,7 @@ except ImportError:
 from sys import getrefcount
 
 __all__ = [	"align_to_mmap", "is_64_bit",
-			"MemoryWindow", "MappedRegion", "MappedRegionList", "ALLOCATIONGRANULARITY"]
+			"MapWindow", "MapRegion", "MapRegionList", "ALLOCATIONGRANULARITY"]
 
 #{ Utilities
 
@@ -39,7 +39,7 @@ def is_64_bit():
 
 #{ Utility Classes 
 
-class MemoryWindow(object):
+class MapWindow(object):
 	"""Utility type which is used to snap windows towards each other, and to adjust their size"""
 	__slots__ = (
 				'ofs',		# offset into the file in bytes
@@ -51,7 +51,7 @@ class MemoryWindow(object):
 		self.size = size
 
 	def __repr__(self):
-		return "MemoryWindow(%i, %i)" % (self.ofs, self.size) 
+		return "MapWindow(%i, %i)" % (self.ofs, self.size) 
 
 	@classmethod
 	def from_region(cls, region):
@@ -84,7 +84,7 @@ class MemoryWindow(object):
 		self.size = min(self.size + (window.ofs - self.ofs_end()), max_size)
 
 
-class MappedRegion(object):
+class MapRegion(object):
 	"""Defines a mapped region of memory, aligned to pagesizes
 	:note: deallocates used region automatically on destruction"""
 	__slots__ = [
@@ -145,7 +145,7 @@ class MappedRegion(object):
 		#END close file handle
 		
 	def __repr__(self):
-		return "MappedRegion<%i, %i>" % (self._b, self.size())
+		return "MapRegion<%i, %i>" % (self._b, self.size())
 		
 	#{ Interface
 		
@@ -201,15 +201,15 @@ class MappedRegion(object):
 	#} END interface
 	
 
-class MappedRegionList(list):
-	"""List of MappedRegion instances associating a path with a list of regions."""
+class MapRegionList(list):
+	"""List of MapRegion instances associating a path with a list of regions."""
 	__slots__ = (
 				'_path_or_fd', 	# path or file descriptor which is mapped by all our regions
 				'_file_size'		# total size of the file we map
 				)
 	
 	def __new__(cls, path):
-		return super(MappedRegionList, cls).__new__(cls)
+		return super(MapRegionList, cls).__new__(cls)
 	
 	def __init__(self, path_or_fd):
 		self._path_or_fd = path_or_fd

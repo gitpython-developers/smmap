@@ -1,8 +1,8 @@
 """Module containnig a memory memory manager which provides a sliding window on a number of memory mapped files"""
 from util import (
-					MemoryWindow,
-					MappedRegion,
-					MappedRegionList,
+					MapWindow,
+					MapRegion,
+					MapRegionList,
 					is_64_bit,
 				)
 
@@ -10,16 +10,16 @@ from exc import RegionCollectionError
 from weakref import ref
 import sys
 
-__all__ = ["MappedMemoryManager"]
+__all__ = ["SlidingWindowMapManager"]
 #{ Utilities
 
 #}END utilities
 
-class MemoryCursor(object):
+class SlidingCursor(object):
 	"""Pointer into the mapped region of the memory manager, keeping the current window 
 	alive until it is destroyed.
 	
-	Cursors should not be created manually, but are instead returned by the MappedMemoryManager"""
+	Cursors should not be created manually, but are instead returned by the SlidingWindowMapManager"""
 	__slots__ = ( 
 					'_manager',	# the manger keeping all file regions
 					'_rlist',	# a regions list with regions for our file
@@ -29,8 +29,8 @@ class MemoryCursor(object):
 				)
 	
 	#{ Configuration
-	MemoryWindowCls = MemoryWindow
-	MappedRegionCls = MappedRegion
+	MapWindowCls = MapWindow
+	MapRegionCls = MapRegion
 	#} END configuration
 	
 	def __init__(self, manager = None, regions = None):
@@ -133,9 +133,9 @@ class MemoryCursor(object):
 			#END while bisecting
 			
 			if existing_region is None:
-				left = self.MemoryWindowCls(0, 0)
-				mid = self.MemoryWindowCls(offset, size)
-				right = self.MemoryWindowCls(self.file_size(), 0)
+				left = self.MapWindowCls(0, 0)
+				mid = self.MapWindowCls(offset, size)
+				right = self.MapWindowCls(self.file_size(), 0)
 				
 				# we want to honor the max memory size, and assure we have anough
 				# memory available
@@ -166,13 +166,13 @@ class MemoryCursor(object):
 				# possible mapping
 				if insert_pos == 0:
 					if len_regions:
-						right = self.MemoryWindowCls.from_region(a[insert_pos])
+						right = self.MapWindowCls.from_region(a[insert_pos])
 					#END adjust right side 
 				else:
 					if insert_pos != len_regions:
-						right = self.MemoryWindowCls.from_region(a[insert_pos])
+						right = self.MapWindowCls.from_region(a[insert_pos])
 					# END adjust right window
-					left = self.MemoryWindowCls.from_region(a[insert_pos - 1])
+					left = self.MapWindowCls.from_region(a[insert_pos - 1])
 				#END adjust surrounding windows
 				
 				mid.extend_left_to(left, window_size)
@@ -189,7 +189,7 @@ class MemoryCursor(object):
 					if man._handle_count >= man._max_handle_count:
 						raise Exception
 					#END assert own imposed max file handles
-					self._region = self.MappedRegionCls(a.path_or_fd(), mid.ofs, mid.size, flags)
+					self._region = self.MapRegionCls(a.path_or_fd(), mid.ofs, mid.size, flags)
 				except Exception:
 					# apparently we are out of system resources or hit a limit
 					# As many more operations are likely to fail in that condition (
@@ -301,7 +301,7 @@ class MemoryCursor(object):
 	#} END interface
 	
 	
-class MappedMemoryManager(object):
+class SlidingWindowMapManager(object):
 	"""Maintains a list of ranges of mapped memory regions in one or more files and allows to easily 
 	obtain additional regions assuring there is no overlap.
 	Once a certain memory limit is reached globally, or if there cannot be more open file handles 
@@ -315,7 +315,7 @@ class MappedMemoryManager(object):
 		space is full."""
 		
 	__slots__ = [
-					'_fdict', 			# mapping of path -> MappedRegionList
+					'_fdict', 			# mapping of path -> MapRegionList
 					'_window_size', 	# maximum size of a window
 					'_max_memory_size',	# maximum amount ofmemory we may allocate
 					'_max_handle_count',		# maximum amount of handles to keep open
@@ -324,7 +324,7 @@ class MappedMemoryManager(object):
 				]
 				
 	#{ Configuration
-	MappedRegionListCls = MappedRegionList
+	MapRegionListCls = MapRegionList
 	#} END configuration
 				
 	_MB_in_bytes = 1024 * 1024
@@ -411,10 +411,10 @@ class MappedMemoryManager(object):
 			prevents the file to be opened again just for the purpose of mapping it."""
 		regions = self._fdict.get(path_or_fd)
 		if regions is None:
-			regions = self.MappedRegionListCls(path_or_fd)
+			regions = self.MapRegionListCls(path_or_fd)
 			self._fdict[path_or_fd] = regions
 		# END obtain region for path
-		return MemoryCursor(self, regions)
+		return SlidingCursor(self, regions)
 		
 	def collect(self):
 		"""Collect all available free-to-collect mapped regions
