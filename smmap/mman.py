@@ -136,7 +136,7 @@ class WindowCursor(object):
 		:note: You can only obtain a buffer if this instance is_valid() !
 		:note: buffers should not be cached passed the duration of your access as it will 
 			prevent resources from being freed even though they might not be accounted for anymore !"""
-		return buffer(self._region.map(), self._ofs, self._size)
+		return buffer(self._region.buffer(), self._ofs, self._size)
 		
 	def map(self):
 		"""

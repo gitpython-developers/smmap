@@ -136,7 +136,7 @@ class MapRegion(object):
 			self._size = len(self._mf)
 			
 			if self._need_compat_layer:
-				self._mfb = buffer(self._mf, ofs, size)
+				self._mfb = buffer(self._mf, ofs, self._size)
 			#END handle buffer wrapping
 		finally:
 			if isinstance(path_or_fd, basestring):
@@ -148,7 +148,11 @@ class MapRegion(object):
 		return "MapRegion<%i, %i>" % (self._b, self.size())
 		
 	#{ Interface
-		
+
+	def buffer(self):
+		""":return: a buffer containing the memory"""
+		return self._mf
+	
 	def map(self):
 		""":return: a memory map containing the memory"""
 		return self._mf
