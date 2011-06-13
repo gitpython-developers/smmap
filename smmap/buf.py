@@ -47,6 +47,8 @@ class SlidingWindowMapBuffer(object):
 	def __getitem__(self, i):
 		c = self._c
 		assert c.is_valid()
+		if i < 0:
+			i = self._size + i
 		if not c.includes_ofs(i):
 			c.use_region(i, 1)
 		# END handle region usage
@@ -57,6 +59,12 @@ class SlidingWindowMapBuffer(object):
 		# fast path, slice fully included - safes a concatenate operation and 
 		# should be the default
 		assert c.is_valid()
+		if i < 0:
+			i = self._size + i
+		if j == sys.maxint:
+			j = self._size
+		if j < 0:
+			j = self._size + j
 		if (c.ofs_begin() <= i) and (j < c.ofs_end()):
 			b = c.ofs_begin()
 			return c.buffer()[i-b:j-b]
@@ -68,6 +76,7 @@ class SlidingWindowMapBuffer(object):
 			md = str()
 			while l:
 				c.use_region(ofs, l)
+				assert c.is_valid()
 				d = c.buffer()[:l]
 				ofs += len(d)
 				l -= len(d)
@@ -102,6 +111,7 @@ class SlidingWindowMapBuffer(object):
 				self._size = size 
 			#END set size
 			return res
+		# END use our cursor
 		return False
 		
 	def end_access(self):

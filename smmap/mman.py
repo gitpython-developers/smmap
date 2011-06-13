@@ -11,21 +11,22 @@ from weakref import ref
 import sys
 from sys import getrefcount
 
-__all__ = ["StaticWindowMapManager", "SlidingWindowMapManager"]
+__all__ = ["StaticWindowMapManager", "SlidingWindowMapManager", "WindowCursor"]
 #{ Utilities
 
 #}END utilities
 
 
-
 class WindowCursor(object):
-	"""Pointer into the mapped region of the memory manager, keeping the map 
+	"""
+	Pointer into the mapped region of the memory manager, keeping the map 
 	alive until it is destroyed and no other client uses it.
-	
+
 	Cursors should not be created manually, but are instead returned by the SlidingWindowMapManager
-	:note: The current implementation is suited for static and sliding window managers, but it also means 
-		that it must be suited for the somewhat quite different sliding manager. It could be improved, but 
-		I see no real need to do so."""
+	
+	**Note**: The current implementation is suited for static and sliding window managers, but it also means 
+	that it must be suited for the somewhat quite different sliding manager. It could be improved, but 
+	I see no real need to do so."""
 	__slots__ = ( 
 					'_manager',	# the manger keeping all file regions
 					'_rlist',	# a regions list with regions for our file
@@ -85,14 +86,16 @@ class WindowCursor(object):
 		
 	def use_region(self, offset = 0, size = 0, flags = 0):
 		"""Assure we point to a window which allows access to the given offset into the file
+		
 		:param offset: absolute offset in bytes into the file
 		:param size: amount of bytes to map. If 0, all available bytes will be mapped
 		:param flags: additional flags to be given to os.open in case a file handle is initially opened
 			for mapping. Has no effect if a region can actually be reused.
 		:return: this instance - it should be queried for whether it points to a valid memory region.
 			This is not the case if the mapping failed becaues we reached the end of the file
-		:note: The size actually mapped may be smaller than the given size. If that is the case,
-			either the file has reached its end, or the map was created between two existing regions"""
+			
+		**note**: The size actually mapped may be smaller than the given size. If that is the case,
+		either the file has reached its end, or the map was created between two existing regions"""
 		need_region = True
 		man = self._manager
 		fsize = self._rlist.file_size()
@@ -123,9 +126,10 @@ class WindowCursor(object):
 		
 	def unuse_region(self):
 		"""Unuse the ucrrent region. Does nothing if we have no current region
-		:note: the cursor unuses the region automatically upon destruction. It is recommended
-			to unuse the region once you are done reading from it in persistent cursors as it 
-			helps to free up resource more quickly"""
+		
+		**note** the cursor unuses the region automatically upon destruction. It is recommended
+		to unuse the region once you are done reading from it in persistent cursors as it 
+		helps to free up resource more quickly"""
 		self._region = None
 		# note: should reset ofs and size, but we spare that for performance. Its not 
 		# allowed to query information if we are not valid !
@@ -133,9 +137,11 @@ class WindowCursor(object):
 	def buffer(self):
 		"""Return a buffer object which allows access to our memory region from our offset
 		to the window size. Please note that it might be smaller than you requested when calling use_region()
-		:note: You can only obtain a buffer if this instance is_valid() !
-		:note: buffers should not be cached passed the duration of your access as it will 
-			prevent resources from being freed even though they might not be accounted for anymore !"""
+		
+		**note** You can only obtain a buffer if this instance is_valid() !
+		
+		**note** buffers should not be cached passed the duration of your access as it will 
+		prevent resources from being freed even though they might not be accounted for anymore !"""
 		return buffer(self._region.buffer(), self._ofs, self._size)
 		
 	def map(self):
@@ -155,7 +161,8 @@ class WindowCursor(object):
 		
 	def ofs_begin(self):
 		""":return: offset to the first byte pointed to by our cursor
-		:note: only if is_valid() is True"""
+		
+		**note** only if is_valid() is True"""
 		return self._region._b + self._ofs
 		
 	def ofs_end(self):
@@ -177,7 +184,8 @@ class WindowCursor(object):
 	def includes_ofs(self, ofs):
 		""":return: True if the given absolute offset is contained in the cursors 
 			current region
-		:note: cursor must be valid for this to work"""
+		
+		**note** cursor must be valid for this to work"""
 		# unroll methods
 		return (self._region._b + self._ofs) <= ofs < (self._region._b + self._ofs + self._size)
 		
@@ -199,7 +207,8 @@ class WindowCursor(object):
 		
 	def fd(self):
 		""":return: file descriptor used to create the underlying mapping.
-		:note: it is not required to be valid anymore
+		
+		**note** it is not required to be valid anymore
 		:raise ValueError: if the mapping was not created by a file descriptor"""
 		if isinstance(self._rlist.path_or_fd(), basestring):
 			raise ValueError("File descriptor queried although mapping was generated from path")
@@ -354,8 +363,9 @@ class StaticWindowMapManager(object):
 	
 	#{ Interface 
 	def make_cursor(self, path_or_fd):
-		""":return: a cursor pointing to the given path or file descriptor. 
-		It can be used to map new regions of the file into memory
+		"""
+		:return: a cursor pointing to the given path or file descriptor. 
+			It can be used to map new regions of the file into memory
 		:note: if a file descriptor is given, it is assumed to be open and valid,
 			but may be closed afterwards. To refer to the same file, you may reuse
 			your existing file descriptor, but keep in mind that new windows can only
