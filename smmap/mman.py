@@ -11,17 +11,16 @@ from weakref import ref
 import sys
 from sys import getrefcount
 
-__all__ = ["StaticWindowMapManager", "SlidingWindowMapManager"]
+__all__ = ["StaticWindowMapManager", "SlidingWindowMapManager", "WindowCursor"]
 #{ Utilities
 
 #}END utilities
 
 
-
 class WindowCursor(object):
 	"""Pointer into the mapped region of the memory manager, keeping the map 
 	alive until it is destroyed and no other client uses it.
-	
+
 	Cursors should not be created manually, but are instead returned by the SlidingWindowMapManager
 	:note: The current implementation is suited for static and sliding window managers, but it also means 
 		that it must be suited for the somewhat quite different sliding manager. It could be improved, but 
@@ -85,6 +84,7 @@ class WindowCursor(object):
 		
 	def use_region(self, offset = 0, size = 0, flags = 0):
 		"""Assure we point to a window which allows access to the given offset into the file
+		
 		:param offset: absolute offset in bytes into the file
 		:param size: amount of bytes to map. If 0, all available bytes will be mapped
 		:param flags: additional flags to be given to os.open in case a file handle is initially opened

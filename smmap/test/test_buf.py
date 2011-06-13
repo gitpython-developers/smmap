@@ -50,6 +50,10 @@ class TestBuf(TestBase):
 		assert data[offset] == buf[0]
 		assert data[offset:offset*2] == buf[0:offset]
 		
+		# negative indices, partial slices
+		assert buf[-1] == buf[len(buf)-1]
+		assert buf[-10:] == buf[len(buf)-10:len(buf)]
+		
 		# end access makes its cursor invalid
 		buf.end_access()
 		assert not buf.cursor().is_valid()

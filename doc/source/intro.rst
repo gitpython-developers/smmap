@@ -34,11 +34,6 @@ Limitations
 * In python below 2.6, memory maps will be created in compatibility mode which works, but creates inefficient memory mappings as they always start at offset 0.
 * It wasn't tested on python 2.7 and 3.x.
 
-###############
-Getting Started
-###############
-It is advised to have a look at the :ref:`Usage Guide <tutorial-label>` for a brief introduction on the different database implementations.
-
 ################
 Installing smmap
 ################
@@ -53,7 +48,9 @@ As the command will install smmap in your respective python distribution, you wi
 If you have downloaded the source archive, the package can be installed by running the ``setup.py`` script::
     
     $ python setup.py install
-    
+
+It is advised to have a look at the :ref:`Usage Guide <tutorial-label>` for a brief introduction on the different database implementations.
+
 ##################
 Homepage and Links
 ##################
