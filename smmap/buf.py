@@ -12,9 +12,9 @@ class SlidingWindowMapBuffer(object):
 	The buffer is relative, that is if you map an offset, index 0 will map to the 
 	first byte at the offset you used during initialization or begin_access
 	
-	:note: Although this type effectively hides the fact that there are mapped windows
-		underneath, it can unfortunately not be used in any non-pure python method which
-		needs a buffer or string"""
+	**Note:** Although this type effectively hides the fact that there are mapped windows
+	underneath, it can unfortunately not be used in any non-pure python method which
+	needs a buffer or string"""
 	__slots__ = (
 				'_c',			# our cursor
 				'_size', 		# our supposed size

@@ -88,7 +88,8 @@ class MapWindow(object):
 
 class MapRegion(object):
 	"""Defines a mapped region of memory, aligned to pagesizes
-	:note: deallocates used region automatically on destruction"""
+	
+	**Note:** deallocates used region automatically on destruction"""
 	__slots__ = [
 					'_b'	, 	# beginning of mapping
 					'_mf',	# mapped memory chunk (as returned by mmap)

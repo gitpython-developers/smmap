@@ -24,7 +24,7 @@ class WindowCursor(object):
 
 	Cursors should not be created manually, but are instead returned by the SlidingWindowMapManager
 	
-	**Note**: The current implementation is suited for static and sliding window managers, but it also means 
+	**Note:**: The current implementation is suited for static and sliding window managers, but it also means 
 	that it must be suited for the somewhat quite different sliding manager. It could be improved, but 
 	I see no real need to do so."""
 	__slots__ = ( 
@@ -94,7 +94,7 @@ class WindowCursor(object):
 		:return: this instance - it should be queried for whether it points to a valid memory region.
 			This is not the case if the mapping failed becaues we reached the end of the file
 			
-		**note**: The size actually mapped may be smaller than the given size. If that is the case,
+		**Note:**: The size actually mapped may be smaller than the given size. If that is the case,
 		either the file has reached its end, or the map was created between two existing regions"""
 		need_region = True
 		man = self._manager
@@ -127,7 +127,7 @@ class WindowCursor(object):
 	def unuse_region(self):
 		"""Unuse the ucrrent region. Does nothing if we have no current region
 		
-		**note** the cursor unuses the region automatically upon destruction. It is recommended
+		**Note:** the cursor unuses the region automatically upon destruction. It is recommended
 		to unuse the region once you are done reading from it in persistent cursors as it 
 		helps to free up resource more quickly"""
 		self._region = None
@@ -138,9 +138,9 @@ class WindowCursor(object):
 		"""Return a buffer object which allows access to our memory region from our offset
 		to the window size. Please note that it might be smaller than you requested when calling use_region()
 		
-		**note** You can only obtain a buffer if this instance is_valid() !
+		**Note:** You can only obtain a buffer if this instance is_valid() !
 		
-		**note** buffers should not be cached passed the duration of your access as it will 
+		**Note:** buffers should not be cached passed the duration of your access as it will 
 		prevent resources from being freed even though they might not be accounted for anymore !"""
 		return buffer(self._region.buffer(), self._ofs, self._size)
 		
@@ -162,7 +162,7 @@ class WindowCursor(object):
 	def ofs_begin(self):
 		""":return: offset to the first byte pointed to by our cursor
 		
-		**note** only if is_valid() is True"""
+		**Note:** only if is_valid() is True"""
 		return self._region._b + self._ofs
 		
 	def ofs_end(self):
@@ -185,7 +185,7 @@ class WindowCursor(object):
 		""":return: True if the given absolute offset is contained in the cursors 
 			current region
 		
-		**note** cursor must be valid for this to work"""
+		**Note:** cursor must be valid for this to work"""
 		# unroll methods
 		return (self._region._b + self._ofs) <= ofs < (self._region._b + self._ofs + self._size)
 		
@@ -208,7 +208,7 @@ class WindowCursor(object):
 	def fd(self):
 		""":return: file descriptor used to create the underlying mapping.
 		
-		**note** it is not required to be valid anymore
+		**Note:** it is not required to be valid anymore
 		:raise ValueError: if the mapping was not created by a file descriptor"""
 		if isinstance(self._rlist.path_or_fd(), basestring):
 			raise ValueError("File descriptor queried although mapping was generated from path")
@@ -289,9 +289,11 @@ class StaticWindowMapManager(object):
 		:param size: size of the region we want to map next (assuming its not already mapped partially or full
 			if 0, we try to free any available region
 		:return: Amount of freed regions
-		:note: We don't raise exceptions anymore, in order to keep the system working, allowing temporary overallocation.
-			If the system runs out of memory, it will tell.
-		:todo: implement a case where all unusued regions are discarded efficiently. Currently its only brute force"""
+		
+		**Note:** We don't raise exceptions anymore, in order to keep the system working, allowing temporary overallocation.
+		If the system runs out of memory, it will tell.
+		
+		**todo:** implement a case where all unusued regions are discarded efficiently. Currently its only brute force"""
 		num_found = 0
 		while (size == 0) or (self._memory_size + size > self._max_memory_size):
 			lru_region = None
@@ -366,15 +368,18 @@ class StaticWindowMapManager(object):
 		"""
 		:return: a cursor pointing to the given path or file descriptor. 
 			It can be used to map new regions of the file into memory
-		:note: if a file descriptor is given, it is assumed to be open and valid,
-			but may be closed afterwards. To refer to the same file, you may reuse
-			your existing file descriptor, but keep in mind that new windows can only
-			be mapped as long as it stays valid. This is why the using actual file paths
-			are preferred unless you plan to keep the file descriptor open.
-		:note: file descriptors are problematic as they are not necessarily unique, as two 
-			different files opened and closed in succession might have the same file descriptor id. 
-		:note: Using file descriptors directly is faster once new windows are mapped as it 
-			prevents the file to be opened again just for the purpose of mapping it."""
+			
+		**Note:** if a file descriptor is given, it is assumed to be open and valid,
+		but may be closed afterwards. To refer to the same file, you may reuse
+		your existing file descriptor, but keep in mind that new windows can only
+		be mapped as long as it stays valid. This is why the using actual file paths
+		are preferred unless you plan to keep the file descriptor open.
+		
+		**Note:** file descriptors are problematic as they are not necessarily unique, as two 
+		different files opened and closed in succession might have the same file descriptor id.
+		
+		**Note:** Using file descriptors directly is faster once new windows are mapped as it 
+		prevents the file to be opened again just for the purpose of mapping it."""
 		regions = self._fdict.get(path_or_fd)
 		if regions is None:
 			regions = self.MapRegionListCls(path_or_fd)
@@ -426,7 +431,8 @@ class StaticWindowMapManager(object):
 		This really may only be used if you know that the items which keep 
 		the cursors alive will not be using it anymore. They need to be recreated !
 		:return: Amount of closed handles
-		:note: does nothing on non-windows platforms"""
+		
+		**Note:** does nothing on non-windows platforms"""
 		if sys.platform != 'win32':
 			return
 		#END early bailout
@@ -451,8 +457,9 @@ class SlidingWindowMapManager(StaticWindowMapManager):
 	which result from each mmap call, the least recently used, and currently unused mapped regions
 	are unloaded automatically.
 	
-	:note: currently not thread-safe !
-	:note: in the current implementation, we will automatically unload windows if we either cannot
+	**Note:** currently not thread-safe !
+	
+	**Note:** in the current implementation, we will automatically unload windows if we either cannot
 		create more memory maps (as the open file handles limit is hit) or if we have allocated more than 
 		a safe amount of memory already, which would possibly cause memory allocations to fail as our address
 		space is full."""
