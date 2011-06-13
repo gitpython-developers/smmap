@@ -354,8 +354,9 @@ class StaticWindowMapManager(object):
 	
 	#{ Interface 
 	def make_cursor(self, path_or_fd):
-		""":return: a cursor pointing to the given path or file descriptor. 
-		It can be used to map new regions of the file into memory
+		"""
+		:return: a cursor pointing to the given path or file descriptor. 
+			It can be used to map new regions of the file into memory
 		:note: if a file descriptor is given, it is assumed to be open and valid,
 			but may be closed afterwards. To refer to the same file, you may reuse
 			your existing file descriptor, but keep in mind that new windows can only
