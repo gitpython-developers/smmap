@@ -99,7 +99,13 @@ class MapRegion(object):
 	if _need_compat_layer:
 		__slots__.append('_mfb')		# mapped memory buffer to provide offset
 	#END handle additional slot
-		
+	
+	#{ Configuration
+	# Used for testing only. If True, all data will be loaded into memory at once.
+	# This makes sure no file handles will remain open.
+	_test_read_into_memory = False
+	#} END configuration
+	
 	
 	def __init__(self, path_or_fd, ofs, size, flags = 0):
 		"""Initialize a region, allocate the memory map
@@ -132,7 +138,13 @@ class MapRegion(object):
 			# have to correct size, otherwise (instead of the c version) it will 
 			# bark that the size is too large ... many extra file accesses because
 			# if this ... argh !
-			self._mf = mmap(fd, min(os.fstat(fd).st_size - sizeofs, corrected_size), **kwargs)
+			actual_size = min(os.fstat(fd).st_size - sizeofs, corrected_size)
+			if self._test_read_into_memory:
+				self._mf = self._read_into_memory(fd, ofs, actual_size)
+			else:
+				self._mf = mmap(fd, actual_size, **kwargs)
+			#END handle memory mode
+			
 			self._size = len(self._mf)
 			
 			if self._need_compat_layer:
@@ -143,6 +155,19 @@ class MapRegion(object):
 				os.close(fd)
 			#END only close it if we opened it
 		#END close file handle
+		
+	def _read_into_memory(self, fd, offset, size):
+		""":return: string data as read from the given file descriptor, offset and size """
+		os.lseek(fd, offset, os.SEEK_SET)
+		mf = ''
+		bytes_todo = size
+		while bytes_todo:
+			chunk = 1024*1024
+			d = os.read(fd, chunk)
+			bytes_todo -= len(d)
+			mf += d
+		#END loop copy items
+		return mf
 		
 	def __repr__(self):
 		return "MapRegion<%i, %i>" % (self._b, self.size())
@@ -204,7 +229,7 @@ class MapRegion(object):
 	
 	#} END interface
 	
-
+	
 class MapRegionList(list):
 	"""List of MapRegion instances associating a path with a list of regions."""
 	__slots__ = (
