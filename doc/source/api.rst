@@ -4,33 +4,33 @@
 API Reference
 #############
 
-****************
-smmap.mman
-****************
+***********************
+Mapped Memory Managers
+***********************
 
 .. automodule:: smmap.mman
    :members:
    :undoc-members:
 
-****************
-smmap.buf
-****************
+*******
+Buffers
+*******
 
 .. automodule:: smmap.buf
    :members:
    :undoc-members:
 
-****************
-smmap.exc
-****************
+**********
+Exceptions
+**********
 
 .. automodule:: smmap.exc
    :members:
    :undoc-members:
 
-****************
-smmap.util
-****************
+*********
+Utilities
+*********
 
 .. automodule:: smmap.util
    :members:
