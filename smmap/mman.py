@@ -68,7 +68,7 @@ class WindowCursor(object):
 		self._size = rhs._size
 		
 		if self._region is not None:
-			self._region.increment_usage_count(1)
+			self._region.increment_usage_count()
 		# END handle regions
 		
 	def __copy__(self):
@@ -358,7 +358,6 @@ class StaticWindowMapManager(object):
 		# END handle array
 		
 		assert r.includes_ofs(offset)
-		#assert r.includes_ofs(offset+size-1)
 		return r
 
 	#}END internal methods
