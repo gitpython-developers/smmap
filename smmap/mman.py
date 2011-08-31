@@ -52,11 +52,14 @@ class WindowCursor(object):
 		if self._rlist is not None:
 			# Actual client count, which doesn't include the reference kept by the manager, nor ours
 			# as we are about to be deleted
-			num_clients = self._rlist.client_count() - 2
-			if num_clients == 0 and len(self._rlist) == 0:
-				# Free all resources associated with the mapped file
-				self._manager._fdict.pop(self._rlist.path_or_fd())
-			#END remove regions list from manager
+			try:
+				num_clients = self._rlist.client_count() - 2
+				if num_clients == 0 and len(self._rlist) == 0:
+					# Free all resources associated with the mapped file
+					self._manager._fdict.pop(self._rlist.path_or_fd())
+				# END remove regions list from manager
+			except TypeError:
+				pass
 		#END handle regions
 		
 	def _copy_from(self, rhs):
