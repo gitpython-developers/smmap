@@ -51,8 +51,9 @@ class WindowCursor(object):
 		
 		if self._rlist is not None:
 			# Actual client count, which doesn't include the reference kept by the manager, nor ours
-			# as we are about to be deleted
-			num_clients = self._rlist.client_count() - 2
+			# as we are about to be deleted, nor the one on the stack, nor in getrefcount
+			from sys import getrefcount
+			num_clients = getrefcount(self._rlist) - 4
 			if num_clients == 0 and len(self._rlist) == 0:
 				# Free all resources associated with the mapped file
 				self._manager._fdict.pop(self._rlist.path_or_fd())
