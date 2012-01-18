@@ -59,7 +59,12 @@ class WindowCursor(object):
 					self._manager._fdict.pop(self._rlist.path_or_fd())
 				# END remove regions list from manager
 			except TypeError:
+				# sometimes, during shutdown, getrefcount is None. Its possible
+				# to re-import it, however, its probably better to just ignore
+				# this python problem (for now).
+				# The next step is to get rid of the error prone getrefcount alltogether.
 				pass
+			#END exception handling
 		#END handle regions
 		
 	def _copy_from(self, rhs):
