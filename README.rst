@@ -9,6 +9,8 @@ Although memory maps have many advantages, they represent a very limited system 
 Overview
 ########
 
+.. image:: https://travis-ci.org/Byron/smmap.svg?branch=master   :target: https://travis-ci.org/Byron/smmap
+
 Smmap wraps an interface around mmap and tracks the mapped files as well as the amount of clients who use it. If the system runs out of resources, or if a memory limit is reached, it will automatically unload unused maps to allow continued operation.
 
 To allow processing large files even on 32 bit systems, it allows only portions of the file to be mapped. Once the user reads beyond the mapped region, smmap will automatically map the next required region, unloading unused regions using a LRU algorithm.
@@ -58,17 +60,17 @@ The project is home on github at `https://github.com/Byron/smmap <https://github
 
 The latest source can be cloned from github as well:
 
- * git://github.com/gitpython-developers/smmap.git
+* git://github.com/gitpython-developers/smmap.git
  
  
 For support, please use the git-python mailing list:
 
- * http://groups.google.com/group/git-python
+* http://groups.google.com/group/git-python
  
 
 Issues can be filed on github:
 
- * https://github.com/Byron/smmap/issues
+* https://github.com/Byron/smmap/issues
  
 ###################
 License Information
