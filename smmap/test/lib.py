@@ -22,7 +22,7 @@ class FileCreator(object):
         
         fp = open(self._path, "wb")
         fp.seek(size-1)
-        fp.write('1')
+        fp.write(b'1')
         fp.close()
         
         assert os.path.getsize(self.path) == size
