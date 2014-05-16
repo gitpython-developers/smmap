@@ -1,15 +1,17 @@
 """Module containnig a memory memory manager which provides a sliding window on a number of memory mapped files"""
-from util import (
+from .util import (
                     MapWindow,
                     MapRegion,
                     MapRegionList,
                     is_64_bit,
-                    align_to_mmap
+                    align_to_mmap,
+                    string_types,
                 )
 
 from weakref import ref
 import sys
 from sys import getrefcount
+from functools import reduce
 
 __all__ = ["StaticWindowMapManager", "SlidingWindowMapManager", "WindowCursor"]
 #{ Utilities
@@ -218,7 +220,7 @@ class WindowCursor(object):
         
         **Note:** it is not required to be valid anymore
         :raise ValueError: if the mapping was not created by a file descriptor"""
-        if isinstance(self._rlist.path_or_fd(), basestring):
+        if isinstance(self._rlist.path_or_fd(), string_types()):
             raise ValueError("File descriptor queried although mapping was generated from path")
         #END handle type
         return self._rlist.path_or_fd()
@@ -256,7 +258,7 @@ class StaticWindowMapManager(object):
                 
     _MB_in_bytes = 1024 * 1024
                 
-    def __init__(self, window_size = 0, max_memory_size = 0, max_open_handles = sys.maxint):
+    def __init__(self, window_size = 0, max_memory_size = 0, max_open_handles = sys.maxsize):
         """initialize the manager with the given parameters.
         :param window_size: if -1, a default window size will be chosen depending on 
             the operating system's architechture. It will internally be quantified to a multiple of the page size
@@ -306,7 +308,7 @@ class StaticWindowMapManager(object):
         while (size == 0) or (self._memory_size + size > self._max_memory_size):
             lru_region = None
             lru_list = None
-            for regions in self._fdict.itervalues():
+            for regions in self._fdict.values():
                 for region in regions:
                     # check client count - consider that we keep one reference ourselves !
                     if (region.client_count()-2 == 0 and 
@@ -343,7 +345,7 @@ class StaticWindowMapManager(object):
             r = a[0]
         else:
             try:
-                r = self.MapRegionCls(a.path_or_fd(), 0, sys.maxint, flags)
+                r = self.MapRegionCls(a.path_or_fd(), 0, sys.maxsize, flags)
             except Exception:
                 # apparently we are out of system resources or hit a limit
                 # As many more operations are likely to fail in that condition (
@@ -405,7 +407,7 @@ class StaticWindowMapManager(object):
     
     def num_open_files(self):
         """Amount of opened files in the system"""
-        return reduce(lambda x,y: x+y, (1 for rlist in self._fdict.itervalues() if len(rlist) > 0), 0)
+        return reduce(lambda x,y: x+y, (1 for rlist in self._fdict.values() if len(rlist) > 0), 0)
         
     def window_size(self):
         """:return: size of each window when allocating new regions"""
@@ -445,7 +447,7 @@ class StaticWindowMapManager(object):
         #END early bailout
         
         num_closed = 0
-        for path, rlist in self._fdict.iteritems():
+        for path, rlist in self._fdict.items():
             if path.startswith(base_path):
                 for region in rlist:
                     region._mf.close()
@@ -473,7 +475,7 @@ class SlidingWindowMapManager(StaticWindowMapManager):
         
     __slots__ = tuple()
     
-    def __init__(self, window_size = -1, max_memory_size = 0, max_open_handles = sys.maxint):
+    def __init__(self, window_size = -1, max_memory_size = 0, max_open_handles = sys.maxsize):
         """Adjusts the default window size to -1"""
         super(SlidingWindowMapManager, self).__init__(window_size, max_memory_size, max_open_handles)
     

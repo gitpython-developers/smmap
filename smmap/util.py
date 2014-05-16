@@ -19,6 +19,13 @@ __all__ = [ "align_to_mmap", "is_64_bit",
 
 #{ Utilities
 
+def string_types():
+    if sys.version_info[0] >= 3:
+        return str
+    else:
+        return basestring
+
+
 def align_to_mmap(num, round_up):
     """
     Align the given integer number to the closest page offset, which usually is 4096 bytes.
@@ -34,7 +41,7 @@ def align_to_mmap(num, round_up):
     
 def is_64_bit():
     """:return: True if the system is 64 bit. Otherwise it can be assumed to be 32 bit"""
-    return sys.maxint > (1<<32) - 1
+    return sys.maxsize > (1<<32) - 1
 
 #}END utilities
 
@@ -154,7 +161,7 @@ class MapRegion(object):
                 self._mfb = buffer(self._mf, ofs, self._size)
             #END handle buffer wrapping
         finally:
-            if isinstance(path_or_fd, basestring):
+            if isinstance(path_or_fd, string_types()):
                 os.close(fd)
             #END only close it if we opened it
         #END close file handle
@@ -258,7 +265,7 @@ class MapRegionList(list):
     def file_size(self):
         """:return: size of file we manager"""
         if self._file_size is None:
-            if isinstance(self._path_or_fd, basestring):
+            if isinstance(self._path_or_fd, string_types()):
                 self._file_size = os.stat(self._path_or_fd).st_size
             else:
                 self._file_size = os.fstat(self._path_or_fd).st_size

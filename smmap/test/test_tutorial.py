@@ -1,4 +1,4 @@
-from lib import TestBase
+from .lib import TestBase
 
 class TestTutorial(TestBase):
     

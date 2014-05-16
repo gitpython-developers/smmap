@@ -1,4 +1,4 @@
-from lib import TestBase, FileCreator
+from .lib import TestBase, FileCreator
 
 from smmap.util import *
 
@@ -38,7 +38,7 @@ class TestMMan(TestBase):
         assert wc.ofs == 1 and wc.size == maxsize
         
         # without maxsize
-        wc.extend_right_to(wr, sys.maxint)
+        wc.extend_right_to(wr, sys.maxsize)
         assert wc.ofs_end() == wr.ofs and wc.ofs == 1
         
         # extend left
@@ -46,7 +46,7 @@ class TestMMan(TestBase):
         wr.extend_left_to(wc2, maxsize)
         assert wr.size == maxsize
         
-        wr.extend_left_to(wc2, sys.maxint)
+        wr.extend_left_to(wc2, sys.maxsize)
         assert wr.ofs == wc2.ofs_end()
         
         wc.align()
@@ -68,7 +68,7 @@ class TestMMan(TestBase):
         assert rhalfsize.ofs_begin() == 0 and rhalfsize.size() == half_size
         
         assert rfull.includes_ofs(0) and rfull.includes_ofs(fc.size-1) and rfull.includes_ofs(half_size)
-        assert not rfull.includes_ofs(-1) and not rfull.includes_ofs(sys.maxint)
+        assert not rfull.includes_ofs(-1) and not rfull.includes_ofs(sys.maxsize)
         # with the values we have, this test only works on windows where an alignment 
         # size of 4096 is assumed.
         # We only test on linux as it is inconsitent between the python versions 

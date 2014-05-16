@@ -1,4 +1,4 @@
-from lib import TestBase, FileCreator
+from .lib import TestBase, FileCreator
 
 from smmap.mman import *
 from smmap.mman import WindowCursor
@@ -66,7 +66,7 @@ class TestMMan(TestBase):
             man._collect_lru_region(10)
             
             # doesn't fail if we overallocate 
-            assert man._collect_lru_region(sys.maxint) == 0
+            assert man._collect_lru_region(sys.maxsize) == 0
             
             # use a region, verify most basic functionality
             fc = FileCreator(self.k_window_test_size, "manager_test")
@@ -80,9 +80,9 @@ class TestMMan(TestBase):
                 assert c.buffer()[:] == open(fc.path, 'rb').read(20)[10:]
                 
                 if isinstance(item, int):
-                    self.failUnlessRaises(ValueError, c.path)
+                    self.assertRaises(ValueError, c.path)
                 else:
-                    self.failUnlessRaises(ValueError, c.fd)
+                    self.assertRaises(ValueError, c.fd)
                 #END handle value error
             #END for each input
             os.close(fd)
