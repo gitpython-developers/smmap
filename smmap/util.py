@@ -104,7 +104,7 @@ class MapRegion(object):
                     '_size', # cached size of our memory map
                     '__weakref__'
                 ]
-    _need_compat_layer = sys.version_info[1] < 6
+    _need_compat_layer = sys.version_info[0] < 3 and sys.version_info[1] < 6
     
     if _need_compat_layer:
         __slots__.append('_mfb')        # mapped memory buffer to provide offset
