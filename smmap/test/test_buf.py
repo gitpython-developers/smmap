@@ -1,4 +1,4 @@
-from lib import TestBase, FileCreator
+from .lib import TestBase, FileCreator
 
 from smmap.mman import SlidingWindowMapManager, StaticWindowMapManager
 from smmap.buf import *
@@ -22,8 +22,8 @@ class TestBuf(TestBase):
         
         # invalid paths fail upon construction
         c = man_optimal.make_cursor(fc.path)
-        self.failUnlessRaises(ValueError, SlidingWindowMapBuffer, type(c)())            # invalid cursor
-        self.failUnlessRaises(ValueError, SlidingWindowMapBuffer, c, fc.size)       # offset too large
+        self.assertRaises(ValueError, SlidingWindowMapBuffer, type(c)())            # invalid cursor
+        self.assertRaises(ValueError, SlidingWindowMapBuffer, c, fc.size)       # offset too large
         
         buf = SlidingWindowMapBuffer()                                              # can create uninitailized buffers
         assert buf.cursor() is None

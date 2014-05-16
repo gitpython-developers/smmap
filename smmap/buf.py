@@ -1,5 +1,5 @@
 """Module with a simple buffer implementation using the memory manager"""
-from mman import WindowCursor
+from .mman import WindowCursor
 
 import sys
 
@@ -21,7 +21,7 @@ class SlidingWindowMapBuffer(object):
                 )
     
     
-    def __init__(self, cursor = None, offset = 0, size = sys.maxint, flags = 0):
+    def __init__(self, cursor = None, offset = 0, size = sys.maxsize, flags = 0):
         """Initalize the instance to operate on the given cursor.
         :param cursor: if not None, the associated cursor to the file you want to access
             If None, you have call begin_access before using the buffer and provide a cursor 
@@ -61,7 +61,7 @@ class SlidingWindowMapBuffer(object):
         assert c.is_valid()
         if i < 0:
             i = self._size + i
-        if j == sys.maxint:
+        if j == sys.maxsize:
             j = self._size
         if j < 0:
             j = self._size + j
@@ -86,7 +86,7 @@ class SlidingWindowMapBuffer(object):
         # END fast or slow path
     #{ Interface
     
-    def begin_access(self, cursor = None, offset = 0, size = sys.maxint, flags = 0):
+    def begin_access(self, cursor = None, offset = 0, size = sys.maxsize, flags = 0):
         """Call this before the first use of this instance. The method was already
         called by the constructor in case sufficient information was provided.
         
