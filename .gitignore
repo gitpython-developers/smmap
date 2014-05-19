@@ -2,6 +2,7 @@
 build/
 .coverage
 coverage
+cover/
 dist/
 MANIFEST
 .tox
