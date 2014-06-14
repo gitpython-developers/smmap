@@ -12,8 +12,6 @@ except ImportError:
     from mmap import PAGESIZE as ALLOCATIONGRANULARITY
 #END handle pythons missing quality assurance
 
-from sys import getrefcount
-
 __all__ = [ "align_to_mmap", "is_64_bit",
             "MapWindow", "MapRegion", "MapRegionList", "ALLOCATIONGRANULARITY"]
 
@@ -210,6 +208,7 @@ class MapRegion(object):
         
     def client_count(self):
         """:return: number of clients currently using this region"""
+        from sys import getrefcount
         # -1: self on stack, -1 self in this method, -1 self in getrefcount
         return getrefcount(self)-3
         
@@ -256,6 +255,7 @@ class MapRegionList(list):
         
     def client_count(self):
         """:return: amount of clients which hold a reference to this instance"""
+        from sys import getrefcount
         return getrefcount(self)-3
         
     def path_or_fd(self):

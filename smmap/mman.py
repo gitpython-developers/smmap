@@ -10,7 +10,6 @@ from .util import (
 
 from weakref import ref
 import sys
-from sys import getrefcount
 from functools import reduce
 
 __all__ = ["StaticWindowMapManager", "SlidingWindowMapManager", "WindowCursor"]
