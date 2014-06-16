@@ -12,10 +12,19 @@ except ImportError:
     from mmap import PAGESIZE as ALLOCATIONGRANULARITY
 #END handle pythons missing quality assurance
 
-__all__ = [ "align_to_mmap", "is_64_bit",
+__all__ = [ "align_to_mmap", "is_64_bit", "buffer",
             "MapWindow", "MapRegion", "MapRegionList", "ALLOCATIONGRANULARITY"]
 
 #{ Utilities
+
+try:
+    # Python 2
+    buffer = buffer
+except NameError:
+    # Python 3 has no `buffer`; only `memoryview`
+    def buffer(obj, offset, size):
+        return memoryview(obj[offset:offset+size])
+
 
 def string_types():
     if sys.version_info[0] >= 3:

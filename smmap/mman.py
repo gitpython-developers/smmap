@@ -6,6 +6,7 @@ from .util import (
                     is_64_bit,
                     align_to_mmap,
                     string_types,
+                    buffer,
                 )
 
 from weakref import ref

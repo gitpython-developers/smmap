@@ -44,6 +44,7 @@ class TestTutorial(TestBase):
         # its recommended not to create big slices when feeding the buffer
         # into consumers (e.g. struct or zlib). 
         # Instead, either give the buffer directly, or use pythons buffer command.
+        from smmap.util import buffer
         buffer(c.buffer(), 1, 9)    # first 9 bytes without copying them
         
         # you can query absolute offsets, and check whether an offset is included
