@@ -54,7 +54,7 @@ class TestMMan(TestBase):
         
     def test_region(self):
         fc = FileCreator(self.k_window_test_size, "window_test")
-        half_size = fc.size / 2
+        half_size = fc.size // 2
         rofs = align_to_mmap(4200, False)
         rfull = MapRegion(fc.path, 0, fc.size)
         rhalfofs = MapRegion(fc.path, rofs, fc.size)
