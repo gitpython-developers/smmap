@@ -5,6 +5,12 @@ import sys
 
 __all__ = ["SlidingWindowMapBuffer"]
 
+try:
+    bytes
+except NameError:
+    bytes = str
+
+
 class SlidingWindowMapBuffer(object):
     """A buffer like object which allows direct byte-wise object and slicing into 
     memory of a mapped file. The mapping is controlled by the provided cursor.
@@ -73,7 +79,7 @@ class SlidingWindowMapBuffer(object):
             ofs = i
             # Keeping tokens in a list could possible be faster, but the list
             # overhead outweighs the benefits (tested) !
-            md = str()
+            md = bytes()
             while l:
                 c.use_region(ofs, l)
                 assert c.is_valid()
