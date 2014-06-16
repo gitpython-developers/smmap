@@ -10,9 +10,10 @@ import os
 
 
 man_optimal = SlidingWindowMapManager()
-man_worst_case = SlidingWindowMapManager(   window_size=TestBase.k_window_test_size/100, 
-                                    max_memory_size=TestBase.k_window_test_size/3, 
-                                    max_open_handles=15)
+man_worst_case = SlidingWindowMapManager(
+    window_size=TestBase.k_window_test_size // 100,
+    max_memory_size=TestBase.k_window_test_size // 3,
+    max_open_handles=15)
 static_man = StaticWindowMapManager()
 
 class TestBuf(TestBase):
