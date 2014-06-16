@@ -95,8 +95,8 @@ class TestMMan(TestBase):
         fd = os.open(fc.path, os.O_RDONLY)
         max_num_handles = 15
         #small_size = 
-        for mtype, args in ( (StaticWindowMapManager, (0, fc.size / 3, max_num_handles)),
-                            (SlidingWindowMapManager, (fc.size / 100, fc.size / 3, max_num_handles)),):
+        for mtype, args in ( (StaticWindowMapManager, (0, fc.size // 3, max_num_handles)),
+                            (SlidingWindowMapManager, (fc.size // 100, fc.size // 3, max_num_handles)),):
             for item in (fc.path, fd):
                 assert len(data) == fc.size
                 
@@ -110,7 +110,7 @@ class TestMMan(TestBase):
                 
                 base_offset = 5000
                 # window size is 0 for static managers, hence size will be 0. We take that into consideration
-                size = man.window_size() / 2
+                size = man.window_size() // 2
                 assert c.use_region(base_offset, size).is_valid()
                 rr = c.region_ref()
                 assert rr().client_count() == 2 # the manager and the cursor and us
