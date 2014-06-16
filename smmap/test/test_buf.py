@@ -76,7 +76,7 @@ class TestBuf(TestBase):
         for item in (fc.path, fd):
             for manager, man_id in ( (man_optimal, 'optimal'), 
                                     (man_worst_case, 'worst case'),
-                                    (static_man, 'static optimial')):
+                                    (static_man, 'static optimal')):
                 buf = SlidingWindowMapBuffer(manager.make_cursor(item))
                 assert manager.num_file_handles() == 1
                 for access_mode in range(2):    # single, multi
