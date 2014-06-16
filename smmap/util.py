@@ -1,4 +1,4 @@
-"""Module containnig a memory memory manager which provides a sliding window on a number of memory mapped files"""
+"""Module containing a memory memory manager which provides a sliding window on a number of memory mapped files"""
 import os
 import sys
 import mmap
