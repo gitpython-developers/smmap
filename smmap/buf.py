@@ -51,6 +51,8 @@ class SlidingWindowMapBuffer(object):
         return self._size
         
     def __getitem__(self, i):
+        if isinstance(i, slice):
+            return self.__getslice__(i.start or 0, i.stop or self._size)
         c = self._c
         assert c.is_valid()
         if i < 0:
