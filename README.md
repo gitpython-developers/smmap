@@ -25,19 +25,15 @@ For performance critical 64 bit applications, a simplified version of memory map
 
 ## Prerequisites
 
-* Python 2.4, 2.5 or 2.6
+* Python 2.4, 2.5, 2.6, 2.7 or 3.3
 * OSX, Windows or Linux
 
 The package was tested on all of the previously mentioned configurations.
-
-
 
 ## Limitations
 
 * The memory access is read-only by design.
 * In python below 2.6, memory maps will be created in compatibility mode which works, but creates inefficient memory mappings as they always start at offset 0.
-* It wasn't tested on python 2.7 and 3.x.
-
 
 ## Installing smmap
 
@@ -79,7 +75,6 @@ Issues can be filed on github:
 
 * https://github.com/Byron/smmap/issues
  
-
 
 ## License Information
 

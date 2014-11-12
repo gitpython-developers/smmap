@@ -1,13 +1,12 @@
 """Module containing a memory memory manager which provides a sliding window on a number of memory mapped files"""
 from .util import (
-                    MapWindow,
-                    MapRegion,
-                    MapRegionList,
-                    is_64_bit,
-                    align_to_mmap,
-                    string_types,
-                    buffer,
-                )
+        MapWindow,
+        MapRegion,
+        MapRegionList,
+        is_64_bit,
+        string_types,
+        buffer,
+    )
 
 from weakref import ref
 import sys
@@ -261,14 +260,14 @@ class StaticWindowMapManager(object):
     def __init__(self, window_size = 0, max_memory_size = 0, max_open_handles = sys.maxsize):
         """initialize the manager with the given parameters.
         :param window_size: if -1, a default window size will be chosen depending on 
-            the operating system's architechture. It will internally be quantified to a multiple of the page size
+            the operating system's architecture. It will internally be quantified to a multiple of the page size
             If 0, the window may have any size, which basically results in mapping the whole file at one
         :param max_memory_size: maximum amount of memory we may map at once before releasing mapped regions.
-            If 0, a viable default iwll be set dependning on the system's architecture.
+            If 0, a viable default will be set depending on the system's architecture.
             It is a soft limit that is tried to be kept, but nothing bad happens if we have to overallocate
-        :param max_open_handles: if not maxin, limit the amount of open file handles to the given number.
-            Otherwise the amount is only limited by the system iteself. If a system or soft limit is hit, 
-            the manager will free as many handles as posisble"""
+        :param max_open_handles: if not maxint, limit the amount of open file handles to the given number.
+            Otherwise the amount is only limited by the system itself. If a system or soft limit is hit, 
+            the manager will free as many handles as possible"""
         self._fdict = dict()
         self._window_size = window_size
         self._max_memory_size = max_memory_size
@@ -277,7 +276,7 @@ class StaticWindowMapManager(object):
         self._handle_count = 0
         
         if window_size < 0:
-            coeff = 32
+            coeff = 64
             if is_64_bit():
                 coeff = 1024
             #END handle arch
@@ -285,7 +284,7 @@ class StaticWindowMapManager(object):
         # END handle max window size
         
         if max_memory_size == 0:
-            coeff = 512
+            coeff = 1024
             if is_64_bit():
                 coeff = 8192
             #END handle arch
