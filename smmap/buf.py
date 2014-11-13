@@ -1,6 +1,4 @@
 """Module with a simple buffer implementation using the memory manager"""
-from .mman import WindowCursor
-
 import sys
 
 __all__ = ["SlidingWindowMapBuffer"]
@@ -79,18 +77,18 @@ class SlidingWindowMapBuffer(object):
         else:
             l = j-i                 # total length
             ofs = i
-            # Keeping tokens in a list could possible be faster, but the list
-            # overhead outweighs the benefits (tested) !
-            md = bytes()
+            # It's fastest to keep tokens and join later, especially in py3, which was 7 times slower
+            # in the previous iteration of this code
+            md = list()
             while l:
                 c.use_region(ofs, l)
                 assert c.is_valid()
                 d = c.buffer()[:l]
                 ofs += len(d)
                 l -= len(d)
-                md += d
+                md.append(d)
             #END while there are bytes to read
-            return md
+            return bytes().join(md)
         # END fast or slow path
     #{ Interface
     

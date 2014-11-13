@@ -1,6 +1,13 @@
 from .lib import TestBase, FileCreator
 
-from smmap.util import *
+from smmap.util import (
+        MapWindow,
+        MapRegion,
+        MapRegionList,
+        ALLOCATIONGRANULARITY,
+        is_64_bit,
+        align_to_mmap
+    )
 
 import os
 import sys

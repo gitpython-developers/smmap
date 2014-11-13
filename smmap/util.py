@@ -23,8 +23,9 @@ try:
 except NameError:
     # Python 3 has no `buffer`; only `memoryview`
     def buffer(obj, offset, size):
-        return memoryview(obj[offset:offset+size])
-
+        # return memoryview(obj[offset:offset+size])
+        # doing it directly is much faster !
+        return obj[offset:offset+size]
 
 def string_types():
     if sys.version_info[0] >= 3:
@@ -112,7 +113,7 @@ class MapRegion(object):
                     '__weakref__'
                 ]
     _need_compat_layer = sys.version_info[0] < 3 and sys.version_info[1] < 6
-    
+
     if _need_compat_layer:
         __slots__.append('_mfb')        # mapped memory buffer to provide offset
     #END handle additional slot
@@ -282,4 +283,4 @@ class MapRegionList(list):
         #END update file size
         return self._file_size
     
-#} END utilty classes
+#} END utility classes

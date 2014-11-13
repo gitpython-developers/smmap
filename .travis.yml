@@ -1,5 +1,8 @@
 language: python
 python:
+  # These versions are unsupported by travis, even though smmap claims to still support these outdated versions
+  # - 2.4
+  # - 2.5
   - 2.6
   - 2.7
   - 3.3
