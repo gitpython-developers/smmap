@@ -3,7 +3,7 @@ Changelog
 #########
 
 **********
-v0.8.2
+v0.8.3
 **********
 - Cleaned up code and assured it works sufficiently well with python 3
 

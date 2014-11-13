@@ -1,14 +1,18 @@
-from __future__ import with_statement, print_function
+from __future__ import print_function
 
 from .lib import TestBase, FileCreator
 
-from smmap.mman import SlidingWindowMapManager, StaticWindowMapManager
-from smmap.buf import *
+from smmap.mman import (
+        SlidingWindowMapManager, 
+        StaticWindowMapManager
+    )
+from smmap.buf import SlidingWindowMapBuffer
 
 from random import randint
 from time import time
 import sys
 import os
+import logging
 
 
 man_optimal = SlidingWindowMapManager()
@@ -71,8 +75,8 @@ class TestBuf(TestBase):
         assert man_optimal.num_file_handles() == 1
 
         # PERFORMANCE
-        # blast away with rnadom access and a full mapping - we don't want to
-        # exagerate the manager's overhead, but measure the buffer overhead
+        # blast away with random access and a full mapping - we don't want to
+        # exaggerate the manager's overhead, but measure the buffer overhead
         # We do it once with an optimal setting, and with a worse manager which
         # will produce small mappings only !
         max_num_accesses = 100

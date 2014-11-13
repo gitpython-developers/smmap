@@ -1,11 +1,13 @@
-from __future__ import with_statement, print_function
+from __future__ import print_function
 
 from .lib import TestBase, FileCreator
 
-from smmap.mman import *
-from smmap.mman import WindowCursor
+from smmap.mman import (
+        WindowCursor,
+        SlidingWindowMapManager,
+        StaticWindowMapManager
+    )
 from smmap.util import align_to_mmap
-from smmap.exc import RegionCollectionError
 
 from random import randint
 from time import time
@@ -67,7 +69,7 @@ class TestMMan(TestBase):
             # doesn't raise if we are within the limit
             man._collect_lru_region(10)
 
-            # doesn't fail if we overallocate
+            # doesn't fail if we over-allocate
             assert man._collect_lru_region(sys.maxsize) == 0
 
             # use a region, verify most basic functionality

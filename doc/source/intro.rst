@@ -22,7 +22,7 @@ For performance critical 64 bit applications, a simplified version of memory map
 #############
 Prerequisites
 #############
-* Python 2.4, 2.5 or 2.6
+* Python 2.4, 2.5, 2.6, 2.7 or 3.3
 * OSX, Windows or Linux
 
 The package was tested on all of the previously mentioned configurations.
@@ -32,15 +32,12 @@ Limitations
 ###########
 * The memory access is read-only by design.
 * In python below 2.6, memory maps will be created in compatibility mode which works, but creates inefficient memory mappings as they always start at offset 0.
-* It wasn't tested on python 2.7 and 3.x.
 
 ################
 Installing smmap
 ################
-Its easiest to install smmap using the *easy_install* or *pip*  program, which is part of the `setuptools`_ or `pip`_ respectively::
+Its easiest to install smmap using the *pip*  program::
     
-    $ easy_install smmap
-    # or 
     $ pip install smmap
     
 As the command will install smmap in your respective python distribution, you will most likely need root permissions to authorize the required changes.
@@ -75,5 +72,4 @@ License Information
 ###################
 *smmap* is licensed under the New BSD License.
 
-.. _setuptools: http://peak.telecommunity.com/DevCenter/setuptools
 .. _pip: http://www.pip-installer.org/en/latest/

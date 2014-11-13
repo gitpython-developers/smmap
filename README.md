@@ -37,11 +37,9 @@ The package was tested on all of the previously mentioned configurations.
 
 ## Installing smmap
 
-Its easiest to install smmap using the *easy_install* or *pip*  program, which is part of the [setuptools](http://peak.telecommunity.com/DevCenter/setuptools) or [pip](http://www.pip-installer.org/en/latest) respectively:
+Its easiest to install smmap using the [pip](http://www.pip-installer.org/en/latest) program:
     
 ```bash
-$ easy_install smmap
-# or 
 $ pip install smmap
 ```
     

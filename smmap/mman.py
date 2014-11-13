@@ -101,7 +101,7 @@ class WindowCursor(object):
         :param flags: additional flags to be given to os.open in case a file handle is initially opened
             for mapping. Has no effect if a region can actually be reused.
         :return: this instance - it should be queried for whether it points to a valid memory region.
-            This is not the case if the mapping failed becaues we reached the end of the file
+            This is not the case if the mapping failed because we reached the end of the file
             
         **Note:**: The size actually mapped may be smaller than the given size. If that is the case,
         either the file has reached its end, or the map was created between two existing regions"""
@@ -137,7 +137,7 @@ class WindowCursor(object):
         """Unuse the ucrrent region. Does nothing if we have no current region
         
         **Note:** the cursor unuses the region automatically upon destruction. It is recommended
-        to unuse the region once you are done reading from it in persistent cursors as it 
+        to un-use the region once you are done reading from it in persistent cursors as it 
         helps to free up resource more quickly"""
         self._region = None
         # note: should reset ofs and size, but we spare that for performance. Its not 
@@ -203,7 +203,7 @@ class WindowCursor(object):
         return self._rlist.file_size()
         
     def path_or_fd(self):
-        """:return: path or file decriptor of the underlying mapped file"""
+        """:return: path or file descriptor of the underlying mapped file"""
         return self._rlist.path_or_fd()
 
     def path(self):
@@ -237,12 +237,12 @@ class StaticWindowMapManager(object):
     These clients would have to use a SlidingWindowMapBuffer to hide this fact.
     
     This type will always use a maximum window size, and optimize certain methods to 
-    acomodate this fact"""
+    accommodate this fact"""
         
     __slots__ = [
                     '_fdict',           # mapping of path -> StorageHelper (of some kind
                     '_window_size',     # maximum size of a window
-                    '_max_memory_size', # maximum amount ofmemory we may allocate
+                    '_max_memory_size', # maximum amount of memory we may allocate
                     '_max_handle_count',        # maximum amount of handles to keep open
                     '_memory_size',     # currently allocated memory size
                     '_handle_count',        # amount of currently allocated file handles
@@ -264,7 +264,7 @@ class StaticWindowMapManager(object):
             If 0, the window may have any size, which basically results in mapping the whole file at one
         :param max_memory_size: maximum amount of memory we may map at once before releasing mapped regions.
             If 0, a viable default will be set depending on the system's architecture.
-            It is a soft limit that is tried to be kept, but nothing bad happens if we have to overallocate
+            It is a soft limit that is tried to be kept, but nothing bad happens if we have to over-allocate
         :param max_open_handles: if not maxint, limit the amount of open file handles to the given number.
             Otherwise the amount is only limited by the system itself. If a system or soft limit is hit, 
             the manager will free as many handles as possible"""
@@ -350,8 +350,6 @@ class StaticWindowMapManager(object):
                 # As many more operations are likely to fail in that condition (
                 # like reading a file from disk, etc) we free up as much as possible
                 # As this invalidates our insert position, we have to recurse here
-                # NOTE: The c++ version uses a linked list to curcumvent this, but
-                # using that in python is probably too slow anyway
                 if is_recursive:
                     # we already tried this, and still have no success in obtaining 
                     # a mapping. This is an exception, so we propagate it
@@ -562,8 +560,6 @@ class SlidingWindowMapManager(StaticWindowMapManager):
                 # As many more operations are likely to fail in that condition (
                 # like reading a file from disk, etc) we free up as much as possible
                 # As this invalidates our insert position, we have to recurse here
-                # NOTE: The c++ version uses a linked list to curcumvent this, but
-                # using that in python is probably too slow anyway
                 if is_recursive:
                     # we already tried this, and still have no success in obtaining 
                     # a mapping. This is an exception, so we propagate it
