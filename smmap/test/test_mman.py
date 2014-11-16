@@ -15,6 +15,7 @@ import os
 import sys
 from copy import copy
 
+
 class TestMMan(TestBase):
 
     def test_cursor(self):
@@ -101,7 +102,7 @@ class TestMMan(TestBase):
         fd = os.open(fc.path, os.O_RDONLY)
         max_num_handles = 15
         #small_size =
-        for mtype, args in ( (StaticWindowMapManager, (0, fc.size // 3, max_num_handles)),
+        for mtype, args in ((StaticWindowMapManager, (0, fc.size // 3, max_num_handles)),
                             (SlidingWindowMapManager, (fc.size // 100, fc.size // 3, max_num_handles)),):
             for item in (fc.path, fd):
                 assert len(data) == fc.size

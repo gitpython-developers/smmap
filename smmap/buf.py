@@ -10,12 +10,12 @@ except NameError:
 
 
 class SlidingWindowMapBuffer(object):
-    """A buffer like object which allows direct byte-wise object and slicing into 
+    """A buffer like object which allows direct byte-wise object and slicing into
     memory of a mapped file. The mapping is controlled by the provided cursor.
-    
-    The buffer is relative, that is if you map an offset, index 0 will map to the 
+
+    The buffer is relative, that is if you map an offset, index 0 will map to the
     first byte at the offset you used during initialization or begin_access
-    
+
     **Note:** Although this type effectively hides the fact that there are mapped windows
     underneath, it can unfortunately not be used in any non-pure python method which
     needs a buffer or string"""
@@ -23,12 +23,11 @@ class SlidingWindowMapBuffer(object):
                 '_c',           # our cursor
                 '_size',        # our supposed size
                 )
-    
-    
-    def __init__(self, cursor = None, offset = 0, size = sys.maxsize, flags = 0):
+
+    def __init__(self, cursor=None, offset=0, size=sys.maxsize, flags=0):
         """Initalize the instance to operate on the given cursor.
         :param cursor: if not None, the associated cursor to the file you want to access
-            If None, you have call begin_access before using the buffer and provide a cursor 
+            If None, you have call begin_access before using the buffer and provide a cursor
         :param offset: absolute offset in bytes
         :param size: the total size of the mapping. Defaults to the maximum possible size
             From that point on, the __len__ of the buffer will be the given size or the file size.
@@ -44,10 +43,10 @@ class SlidingWindowMapBuffer(object):
 
     def __del__(self):
         self.end_access()
-        
+
     def __len__(self):
         return self._size
-        
+
     def __getitem__(self, i):
         if isinstance(i, slice):
             return self.__getslice__(i.start or 0, i.stop or self._size)
@@ -59,10 +58,10 @@ class SlidingWindowMapBuffer(object):
             c.use_region(i, 1)
         # END handle region usage
         return c.buffer()[i-c.ofs_begin()]
-    
+
     def __getslice__(self, i, j):
         c = self._c
-        # fast path, slice fully included - safes a concatenate operation and 
+        # fast path, slice fully included - safes a concatenate operation and
         # should be the default
         assert c.is_valid()
         if i < 0:
@@ -91,18 +90,18 @@ class SlidingWindowMapBuffer(object):
             return bytes().join(md)
         # END fast or slow path
     #{ Interface
-    
-    def begin_access(self, cursor = None, offset = 0, size = sys.maxsize, flags = 0):
+
+    def begin_access(self, cursor=None, offset=0, size=sys.maxsize, flags=0):
         """Call this before the first use of this instance. The method was already
         called by the constructor in case sufficient information was provided.
-        
+
         For more information no the parameters, see the __init__ method
-        :param path: if cursor is None the existing one will be used. 
+        :param path: if cursor is None the existing one will be used.
         :return: True if the buffer can be used"""
         if cursor:
             self._c = cursor
         #END update our cursor
-        
+
         # reuse existing cursors if possible
         if self._c is not None and self._c.is_associated():
             res = self._c.use_region(offset, size, flags).is_valid()
@@ -114,27 +113,25 @@ class SlidingWindowMapBuffer(object):
                 if size > self._c.file_size():
                     size = self._c.file_size() - offset
                 #END handle size
-                self._size = size 
+                self._size = size
             #END set size
             return res
         # END use our cursor
         return False
-        
+
     def end_access(self):
-        """Call this method once you are done using the instance. It is automatically 
+        """Call this method once you are done using the instance. It is automatically
         called on destruction, and should be called just in time to allow system
         resources to be freed.
-        
+
         Once you called end_access, you must call begin access before reusing this instance!"""
         self._size = 0
         if self._c is not None:
             self._c.unuse_region()
         #END unuse region
-        
+
     def cursor(self):
         """:return: the currently set cursor which provides access to the data"""
         return self._c
-        
+
     #}END interface
-
-

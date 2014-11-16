@@ -3,7 +3,7 @@ from __future__ import print_function
 from .lib import TestBase, FileCreator
 
 from smmap.mman import (
-        SlidingWindowMapManager, 
+        SlidingWindowMapManager,
         StaticWindowMapManager
     )
 from smmap.buf import SlidingWindowMapBuffer
@@ -21,6 +21,7 @@ man_worst_case = SlidingWindowMapManager(
     max_memory_size=TestBase.k_window_test_size // 3,
     max_open_handles=15)
 static_man = StaticWindowMapManager()
+
 
 class TestBuf(TestBase):
 
@@ -82,7 +83,7 @@ class TestBuf(TestBase):
         max_num_accesses = 100
         fd = os.open(fc.path, os.O_RDONLY)
         for item in (fc.path, fd):
-            for manager, man_id in ( (man_optimal, 'optimal'),
+            for manager, man_id in ((man_optimal, 'optimal'),
                                     (man_worst_case, 'worst case'),
                                     (static_man, 'static optimal')):
                 buf = SlidingWindowMapBuffer(manager.make_cursor(item))
@@ -114,7 +115,7 @@ class TestBuf(TestBase):
                     assert manager.num_file_handles()
                     assert manager.collect()
                     assert manager.num_file_handles() == 0
-                    elapsed  = max(time() - st, 0.001)  # prevent zero division errors on windows
+                    elapsed = max(time() - st, 0.001)  # prevent zero division errors on windows
                     mb = float(1000*1000)
                     mode_str = (access_mode and "slice") or "single byte"
                     print("%s: Made %i random %s accesses to buffer created from %s reading a total of %f mb in %f s (%f mb/s)"
