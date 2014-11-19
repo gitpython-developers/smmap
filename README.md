@@ -39,6 +39,7 @@ The package was tested on all of the previously mentioned configurations.
 
 [![Latest Version](https://pypip.in/version/smmap/badge.svg)](https://pypi.python.org/pypi/smmap/)
 [![Supported Python versions](https://pypip.in/py_versions/smmap/badge.svg)](https://pypi.python.org/pypi/smmap/)
+[![Documentation Status](https://readthedocs.org/projects/smmap/badge/?version=latest)](https://readthedocs.org/projects/smmap/?badge=latest)
 
 Its easiest to install smmap using the [pip](http://www.pip-installer.org/en/latest) program:
     
