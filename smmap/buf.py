@@ -10,6 +10,7 @@ except NameError:
 
 
 class SlidingWindowMapBuffer(object):
+
     """A buffer like object which allows direct byte-wise object and slicing into
     memory of a mapped file. The mapping is controlled by the provided cursor.
 
@@ -20,9 +21,9 @@ class SlidingWindowMapBuffer(object):
     underneath, it can unfortunately not be used in any non-pure python method which
     needs a buffer or string"""
     __slots__ = (
-                '_c',           # our cursor
-                '_size',        # our supposed size
-                )
+        '_c',           # our cursor
+        '_size',        # our supposed size
+    )
 
     def __init__(self, cursor=None, offset=0, size=sys.maxsize, flags=0):
         """Initalize the instance to operate on the given cursor.
@@ -57,7 +58,7 @@ class SlidingWindowMapBuffer(object):
         if not c.includes_ofs(i):
             c.use_region(i, 1)
         # END handle region usage
-        return c.buffer()[i-c.ofs_begin()]
+        return c.buffer()[i - c.ofs_begin()]
 
     def __getslice__(self, i, j):
         c = self._c
@@ -72,9 +73,9 @@ class SlidingWindowMapBuffer(object):
             j = self._size + j
         if (c.ofs_begin() <= i) and (j < c.ofs_end()):
             b = c.ofs_begin()
-            return c.buffer()[i-b:j-b]
+            return c.buffer()[i - b:j - b]
         else:
-            l = j-i                 # total length
+            l = j - i                 # total length
             ofs = i
             # It's fastest to keep tokens and join later, especially in py3, which was 7 times slower
             # in the previous iteration of this code
@@ -86,7 +87,7 @@ class SlidingWindowMapBuffer(object):
                 ofs += len(d)
                 l -= len(d)
                 md.append(d)
-            #END while there are bytes to read
+            # END while there are bytes to read
             return bytes().join(md)
         # END fast or slow path
     #{ Interface
@@ -100,7 +101,7 @@ class SlidingWindowMapBuffer(object):
         :return: True if the buffer can be used"""
         if cursor:
             self._c = cursor
-        #END update our cursor
+        # END update our cursor
 
         # reuse existing cursors if possible
         if self._c is not None and self._c.is_associated():
@@ -112,9 +113,9 @@ class SlidingWindowMapBuffer(object):
                 # If not, the user is in trouble.
                 if size > self._c.file_size():
                     size = self._c.file_size() - offset
-                #END handle size
+                # END handle size
                 self._size = size
-            #END set size
+            # END set size
             return res
         # END use our cursor
         return False
@@ -128,7 +129,7 @@ class SlidingWindowMapBuffer(object):
         self._size = 0
         if self._c is not None:
             self._c.unuse_region()
-        #END unuse region
+        # END unuse region
 
     def cursor(self):
         """:return: the currently set cursor which provides access to the data"""

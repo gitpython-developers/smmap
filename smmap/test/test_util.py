@@ -1,13 +1,13 @@
 from .lib import TestBase, FileCreator
 
 from smmap.util import (
-        MapWindow,
-        MapRegion,
-        MapRegionList,
-        ALLOCATIONGRANULARITY,
-        is_64_bit,
-        align_to_mmap
-    )
+    MapWindow,
+    MapRegion,
+    MapRegionList,
+    ALLOCATIONGRANULARITY,
+    is_64_bit,
+    align_to_mmap
+)
 
 import os
 import sys
@@ -74,7 +74,7 @@ class TestMMan(TestBase):
         assert rhalfofs.ofs_begin() == rofs and rhalfofs.size() == fc.size - rofs
         assert rhalfsize.ofs_begin() == 0 and rhalfsize.size() == half_size
 
-        assert rfull.includes_ofs(0) and rfull.includes_ofs(fc.size-1) and rfull.includes_ofs(half_size)
+        assert rfull.includes_ofs(0) and rfull.includes_ofs(fc.size - 1) and rfull.includes_ofs(half_size)
         assert not rfull.includes_ofs(-1) and not rfull.includes_ofs(sys.maxsize)
         # with the values we have, this test only works on windows where an alignment
         # size of 4096 is assumed.
@@ -83,7 +83,7 @@ class TestMMan(TestBase):
         # argument of mmap.
         if sys.platform != 'win32':
             assert rhalfofs.includes_ofs(rofs) and not rhalfofs.includes_ofs(0)
-        #END handle platforms
+        # END handle platforms
 
         # auto-refcount
         assert rfull.client_count() == 1
@@ -111,7 +111,7 @@ class TestMMan(TestBase):
             assert len(ml) == 0
             assert ml.path_or_fd() == item
             assert ml.file_size() == fc.size
-        #END handle input
+        # END handle input
         os.close(fd)
 
     def test_util(self):

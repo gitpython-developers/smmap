@@ -3,9 +3,9 @@ from __future__ import print_function
 from .lib import TestBase, FileCreator
 
 from smmap.mman import (
-        SlidingWindowMapManager,
-        StaticWindowMapManager
-    )
+    SlidingWindowMapManager,
+    StaticWindowMapManager
+)
 from smmap.buf import SlidingWindowMapBuffer
 
 from random import randint
@@ -57,11 +57,11 @@ class TestBuf(TestBase):
         with open(fc.path, 'rb') as fp:
             data = fp.read()
         assert data[offset] == buf[0]
-        assert data[offset:offset*2] == buf[0:offset]
+        assert data[offset:offset * 2] == buf[0:offset]
 
         # negative indices, partial slices
-        assert buf[-1] == buf[len(buf)-1]
-        assert buf[-10:] == buf[len(buf)-10:len(buf)]
+        assert buf[-1] == buf[len(buf) - 1]
+        assert buf[-10:] == buf[len(buf) - 10:len(buf)]
 
         # end access makes its cursor invalid
         buf.end_access()
@@ -97,7 +97,7 @@ class TestBuf(TestBase):
                     buf.begin_access()
                     while num_accesses_left:
                         num_accesses_left -= 1
-                        if access_mode: # multi
+                        if access_mode:  # multi
                             ofs_start = randint(0, fsize)
                             ofs_end = randint(ofs_start, fsize)
                             d = buf[ofs_start:ofs_end]
@@ -108,7 +108,7 @@ class TestBuf(TestBase):
                             pos = randint(0, fsize)
                             assert buf[pos] == data[pos]
                             num_bytes += 1
-                        #END handle mode
+                        # END handle mode
                     # END handle num accesses
 
                     buf.end_access()
@@ -116,10 +116,10 @@ class TestBuf(TestBase):
                     assert manager.collect()
                     assert manager.num_file_handles() == 0
                     elapsed = max(time() - st, 0.001)  # prevent zero division errors on windows
-                    mb = float(1000*1000)
+                    mb = float(1000 * 1000)
                     mode_str = (access_mode and "slice") or "single byte"
                     print("%s: Made %i random %s accesses to buffer created from %s reading a total of %f mb in %f s (%f mb/s)"
-                          % (man_id, max_num_accesses, mode_str, type(item), num_bytes/mb, elapsed, (num_bytes/mb)/elapsed),
+                          % (man_id, max_num_accesses, mode_str, type(item), num_bytes / mb, elapsed, (num_bytes / mb) / elapsed),
                           file=sys.stderr)
                 # END handle access mode
             # END for each manager

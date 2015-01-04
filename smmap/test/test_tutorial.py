@@ -20,7 +20,7 @@ class TestTutorial(TestBase):
         # Cursors
         ##########
         import smmap.test.lib
-        fc = smmap.test.lib.FileCreator(1024*1024*8, "test_file")
+        fc = smmap.test.lib.FileCreator(1024 * 1024 * 8, "test_file")
 
         # obtain a cursor to access some file.
         c = mman.make_cursor(fc.path)
@@ -40,7 +40,7 @@ class TestTutorial(TestBase):
         assert c.size()
         c.buffer()[0]           # first byte
         c.buffer()[1:10]            # first 9 bytes
-        c.buffer()[c.size()-1]  # last byte
+        c.buffer()[c.size() - 1]  # last byte
 
         # its recommended not to create big slices when feeding the buffer
         # into consumers (e.g. struct or zlib).
@@ -72,8 +72,8 @@ class TestTutorial(TestBase):
         assert buf.cursor().is_valid()
 
         buf[0]  # access the first byte
-        buf[-1] # access the last ten bytes on the file
-        buf[-10:]# access the last ten bytes
+        buf[-1]  # access the last ten bytes on the file
+        buf[-10:]  # access the last ten bytes
 
         # If you want to keep the instance between different accesses, use the
         # dedicated methods

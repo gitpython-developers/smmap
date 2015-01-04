@@ -3,10 +3,10 @@ from __future__ import print_function
 from .lib import TestBase, FileCreator
 
 from smmap.mman import (
-        WindowCursor,
-        SlidingWindowMapManager,
-        StaticWindowMapManager
-    )
+    WindowCursor,
+    SlidingWindowMapManager,
+    StaticWindowMapManager
+)
 from smmap.util import align_to_mmap
 
 from random import randint
@@ -29,7 +29,7 @@ class TestMMan(TestBase):
 
         cv = man.make_cursor(fc.path)
         assert not cv.is_valid()    # no region mapped yet
-        assert cv.is_associated()# but it know where to map it from
+        assert cv.is_associated()  # but it know where to map it from
         assert cv.file_size() == fc.size
         assert cv.path() == fc.path
 
@@ -60,7 +60,7 @@ class TestMMan(TestBase):
             winsize_cmp_val = 0
             if isinstance(man, StaticWindowMapManager):
                 winsize_cmp_val = -1
-            #END handle window size
+            # END handle window size
             assert man.window_size() > winsize_cmp_val
             assert man.mapped_memory_size() == 0
             assert man.max_mapped_memory_size() > 0
@@ -89,8 +89,8 @@ class TestMMan(TestBase):
                     self.assertRaises(ValueError, c.path)
                 else:
                     self.assertRaises(ValueError, c.fd)
-                #END handle value error
-            #END for each input
+                # END handle value error
+            # END for each input
             os.close(fd)
         # END for each manager type
 
@@ -101,7 +101,7 @@ class TestMMan(TestBase):
             data = fp.read()
         fd = os.open(fc.path, os.O_RDONLY)
         max_num_handles = 15
-        #small_size =
+        # small_size =
         for mtype, args in ((StaticWindowMapManager, (0, fc.size // 3, max_num_handles)),
                             (SlidingWindowMapManager, (fc.size // 100, fc.size // 3, max_num_handles)),):
             for item in (fc.path, fd):
@@ -120,22 +120,23 @@ class TestMMan(TestBase):
                 size = man.window_size() // 2
                 assert c.use_region(base_offset, size).is_valid()
                 rr = c.region_ref()
-                assert rr().client_count() == 2 # the manager and the cursor and us
+                assert rr().client_count() == 2  # the manager and the cursor and us
 
                 assert man.num_open_files() == 1
                 assert man.num_file_handles() == 1
                 assert man.mapped_memory_size() == rr().size()
 
-                #assert c.size() == size        # the cursor may overallocate in its static version
+                # assert c.size() == size        # the cursor may overallocate in its static version
                 assert c.ofs_begin() == base_offset
                 assert rr().ofs_begin() == 0        # it was aligned and expanded
                 if man.window_size():
-                    assert rr().size() == align_to_mmap(man.window_size(), True)    # but isn't larger than the max window (aligned)
+                    # but isn't larger than the max window (aligned)
+                    assert rr().size() == align_to_mmap(man.window_size(), True)
                 else:
                     assert rr().size() == fc.size
-                #END ignore static managers which dont use windows and are aligned to file boundaries
+                # END ignore static managers which dont use windows and are aligned to file boundaries
 
-                assert c.buffer()[:] == data[base_offset:base_offset+(size or c.size())]
+                assert c.buffer()[:] == data[base_offset:base_offset + (size or c.size())]
 
                 # obtain second window, which spans the first part of the file - it is a still the same window
                 nsize = (size or fc.size) - 10
@@ -153,16 +154,16 @@ class TestMMan(TestBase):
                 if man.window_size():
                     assert man.num_file_handles() == 2
                     assert c.size() < size
-                    assert c.region_ref()() is not rr() # old region is still available, but has not curser ref anymore
-                    assert rr().client_count() == 1 # only held by manager
+                    assert c.region_ref()() is not rr()  # old region is still available, but has not curser ref anymore
+                    assert rr().client_count() == 1  # only held by manager
                 else:
                     assert c.size() < fc.size
-                #END ignore static managers which only have one handle per file
+                # END ignore static managers which only have one handle per file
                 rr = c.region_ref()
-                assert rr().client_count() == 2 # manager + cursor
-                assert rr().ofs_begin() < c.ofs_begin() # it should have extended itself to the left
-                assert rr().ofs_end() <= fc.size # it cannot be larger than the file
-                assert c.buffer()[:] == data[base_offset:base_offset+(size or c.size())]
+                assert rr().client_count() == 2  # manager + cursor
+                assert rr().ofs_begin() < c.ofs_begin()  # it should have extended itself to the left
+                assert rr().ofs_end() <= fc.size  # it cannot be larger than the file
+                assert c.buffer()[:] == data[base_offset:base_offset + (size or c.size())]
 
                 # unising a region makes the cursor invalid
                 c.unuse_region()
@@ -171,7 +172,7 @@ class TestMMan(TestBase):
                     # but doesn't change anything regarding the handle count - we cache it and only
                     # remove mapped regions if we have to
                     assert man.num_file_handles() == 2
-                #END ignore this for static managers
+                # END ignore this for static managers
 
                 # iterate through the windows, verify data contents
                 # this will trigger map collection after a while
@@ -193,21 +194,21 @@ class TestMMan(TestBase):
                     # precondition
                     if man.window_size():
                         assert max_mapped_memory_size >= mapped_memory_size()
-                    #END statics will overshoot, which is fine
+                    # END statics will overshoot, which is fine
                     assert max_file_handles >= num_file_handles()
                     assert c.use_region(base_offset, (size or c.size())).is_valid()
                     csize = c.size()
-                    assert c.buffer()[:] == data[base_offset:base_offset+csize]
+                    assert c.buffer()[:] == data[base_offset:base_offset + csize]
                     memory_read += csize
 
                     assert includes_ofs(base_offset)
-                    assert includes_ofs(base_offset+csize-1)
-                    assert not includes_ofs(base_offset+csize)
+                    assert includes_ofs(base_offset + csize - 1)
+                    assert not includes_ofs(base_offset + csize)
                 # END while we should do an access
-                elapsed = max(time() - st, 0.001) # prevent zero divison errors on windows
+                elapsed = max(time() - st, 0.001)  # prevent zero divison errors on windows
                 mb = float(1000 * 1000)
                 print("%s: Read %i mb of memory with %i random on cursor initialized with %s accesses in %fs (%f mb/s)\n"
-                      % (mtype, memory_read/mb, max_random_accesses, type(item), elapsed, (memory_read/mb)/elapsed),
+                      % (mtype, memory_read / mb, max_random_accesses, type(item), elapsed, (memory_read / mb) / elapsed),
                       file=sys.stderr)
 
                 # an offset as large as the size doesn't work !
@@ -217,6 +218,6 @@ class TestMMan(TestBase):
                 assert man.num_file_handles()
                 assert man.collect()
                 assert man.num_file_handles() == 0
-            #END for each item
+            # END for each item
         # END for each manager type
         os.close(fd)

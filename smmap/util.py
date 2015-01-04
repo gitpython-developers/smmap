@@ -10,10 +10,10 @@ except ImportError:
     # in python pre 2.6, the ALLOCATIONGRANULARITY does not exist as it is mainly
     # useful for aligning the offset. The offset argument doesn't exist there though
     from mmap import PAGESIZE as ALLOCATIONGRANULARITY
-#END handle pythons missing quality assurance
+# END handle pythons missing quality assurance
 
 __all__ = ["align_to_mmap", "is_64_bit", "buffer",
-            "MapWindow", "MapRegion", "MapRegionList", "ALLOCATIONGRANULARITY"]
+           "MapWindow", "MapRegion", "MapRegionList", "ALLOCATIONGRANULARITY"]
 
 #{ Utilities
 
@@ -25,7 +25,7 @@ except NameError:
     def buffer(obj, offset, size):
         # return memoryview(obj)[offset:offset+size]
         # doing it directly is much faster !
-        return obj[offset:offset+size]
+        return obj[offset:offset + size]
 
 
 def string_types():
@@ -45,7 +45,7 @@ def align_to_mmap(num, round_up):
     res = (num // ALLOCATIONGRANULARITY) * ALLOCATIONGRANULARITY
     if round_up and (res != num):
         res += ALLOCATIONGRANULARITY
-    #END handle size
+    # END handle size
     return res
 
 
@@ -59,11 +59,12 @@ def is_64_bit():
 #{ Utility Classes
 
 class MapWindow(object):
+
     """Utility type which is used to snap windows towards each other, and to adjust their size"""
     __slots__ = (
-                'ofs',      # offset into the file in bytes
-                'size'              # size of the window in bytes
-                )
+        'ofs',      # offset into the file in bytes
+        'size'              # size of the window in bytes
+    )
 
     def __init__(self, offset, size):
         self.ofs = offset
@@ -104,21 +105,22 @@ class MapWindow(object):
 
 
 class MapRegion(object):
+
     """Defines a mapped region of memory, aligned to pagesizes
 
     **Note:** deallocates used region automatically on destruction"""
     __slots__ = [
-                    '_b',   # beginning of mapping
-                    '_mf',  # mapped memory chunk (as returned by mmap)
-                    '_uc',  # total amount of usages
-                    '_size', # cached size of our memory map
-                    '__weakref__'
-                ]
+        '_b',   # beginning of mapping
+        '_mf',  # mapped memory chunk (as returned by mmap)
+        '_uc',  # total amount of usages
+        '_size',  # cached size of our memory map
+        '__weakref__'
+    ]
     _need_compat_layer = sys.version_info[0] < 3 and sys.version_info[1] < 6
 
     if _need_compat_layer:
         __slots__.append('_mfb')        # mapped memory buffer to provide offset
-    #END handle additional slot
+    # END handle additional slot
 
     #{ Configuration
     # Used for testing only. If True, all data will be loaded into memory at once.
@@ -142,7 +144,7 @@ class MapRegion(object):
             fd = path_or_fd
         else:
             fd = os.open(path_or_fd, os.O_RDONLY | getattr(os, 'O_BINARY', 0) | flags)
-        #END handle fd
+        # END handle fd
 
         try:
             kwargs = dict(access=ACCESS_READ, offset=ofs)
@@ -162,18 +164,18 @@ class MapRegion(object):
                 self._mf = self._read_into_memory(fd, ofs, actual_size)
             else:
                 self._mf = mmap(fd, actual_size, **kwargs)
-            #END handle memory mode
+            # END handle memory mode
 
             self._size = len(self._mf)
 
             if self._need_compat_layer:
                 self._mfb = buffer(self._mf, ofs, self._size)
-            #END handle buffer wrapping
+            # END handle buffer wrapping
         finally:
             if isinstance(path_or_fd, string_types()):
                 os.close(fd)
-            #END only close it if we opened it
-        #END close file handle
+            # END only close it if we opened it
+        # END close file handle
 
     def _read_into_memory(self, fd, offset, size):
         """:return: string data as read from the given file descriptor, offset and size """
@@ -181,11 +183,11 @@ class MapRegion(object):
         mf = ''
         bytes_todo = size
         while bytes_todo:
-            chunk = 1024*1024
+            chunk = 1024 * 1024
             d = os.read(fd, chunk)
             bytes_todo -= len(d)
             mf += d
-        #END loop copy items
+        # END loop copy items
         return mf
 
     def __repr__(self):
@@ -221,7 +223,7 @@ class MapRegion(object):
         """:return: number of clients currently using this region"""
         from sys import getrefcount
         # -1: self on stack, -1 self in this method, -1 self in getrefcount
-        return getrefcount(self)-3
+        return getrefcount(self) - 3
 
     def usage_count(self):
         """:return: amount of usages so far"""
@@ -245,17 +247,18 @@ class MapRegion(object):
 
         def includes_ofs(self, ofs):
             return self._b <= ofs < self._size
-    #END handle compat layer
+    # END handle compat layer
 
     #} END interface
 
 
 class MapRegionList(list):
+
     """List of MapRegion instances associating a path with a list of regions."""
     __slots__ = (
-                '_path_or_fd',  # path or file descriptor which is mapped by all our regions
-                '_file_size'        # total size of the file we map
-                )
+        '_path_or_fd',  # path or file descriptor which is mapped by all our regions
+        '_file_size'        # total size of the file we map
+    )
 
     def __new__(cls, path):
         return super(MapRegionList, cls).__new__(cls)
@@ -267,7 +270,7 @@ class MapRegionList(list):
     def client_count(self):
         """:return: amount of clients which hold a reference to this instance"""
         from sys import getrefcount
-        return getrefcount(self)-3
+        return getrefcount(self) - 3
 
     def path_or_fd(self):
         """:return: path or file descriptor we are attached to"""
@@ -280,8 +283,8 @@ class MapRegionList(list):
                 self._file_size = os.stat(self._path_or_fd).st_size
             else:
                 self._file_size = os.fstat(self._path_or_fd).st_size
-            #END handle path type
-        #END update file size
+            # END handle path type
+        # END update file size
         return self._file_size
 
 #} END utility classes

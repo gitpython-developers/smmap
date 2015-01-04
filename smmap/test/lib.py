@@ -9,6 +9,7 @@ __all__ = ['TestBase', 'FileCreator']
 #{ Utilities
 
 class FileCreator(object):
+
     """A instance which creates a temporary file with a prefix and a given size
     and provides this info to the user.
     Once it gets deleted, it will remove the temporary file as well."""
@@ -21,7 +22,7 @@ class FileCreator(object):
         self._size = size
 
         fp = open(self._path, "wb")
-        fp.seek(size-1)
+        fp.seek(size - 1)
         fp.write(b'1')
         fp.close()
 
@@ -32,7 +33,7 @@ class FileCreator(object):
             os.remove(self.path)
         except OSError:
             pass
-        #END exception handling
+        # END exception handling
 
     @property
     def path(self):
@@ -46,6 +47,7 @@ class FileCreator(object):
 
 
 class TestBase(TestCase):
+
     """Foundation used by all tests"""
 
     #{ Configuration
@@ -58,7 +60,7 @@ class TestBase(TestCase):
         # nothing for now
         pass
 
-    #END overrides
+    # END overrides
 
     #{ Interface
 

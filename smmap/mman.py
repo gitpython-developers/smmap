@@ -1,12 +1,12 @@
 """Module containing a memory memory manager which provides a sliding window on a number of memory mapped files"""
 from .util import (
-        MapWindow,
-        MapRegion,
-        MapRegionList,
-        is_64_bit,
-        string_types,
-        buffer,
-    )
+    MapWindow,
+    MapRegion,
+    MapRegionList,
+    is_64_bit,
+    string_types,
+    buffer,
+)
 
 from weakref import ref
 import sys
@@ -19,6 +19,7 @@ __all__ = ["StaticWindowMapManager", "SlidingWindowMapManager", "WindowCursor"]
 
 
 class WindowCursor(object):
+
     """
     Pointer into the mapped region of the memory manager, keeping the map
     alive until it is destroyed and no other client uses it.
@@ -29,12 +30,12 @@ class WindowCursor(object):
     that it must be suited for the somewhat quite different sliding manager. It could be improved, but
     I see no real need to do so."""
     __slots__ = (
-                    '_manager', # the manger keeping all file regions
-                    '_rlist',   # a regions list with regions for our file
+        '_manager',  # the manger keeping all file regions
+        '_rlist',   # a regions list with regions for our file
                     '_region',  # our current region or None
                     '_ofs',     # relative offset from the actually mapped area to our start area
                     '_size'     # maximum size we should provide
-                )
+    )
 
     def __init__(self, manager=None, regions=None):
         self._manager = manager
@@ -65,8 +66,8 @@ class WindowCursor(object):
                 # this python problem (for now).
                 # The next step is to get rid of the error prone getrefcount alltogether.
                 pass
-            #END exception handling
-        #END handle regions
+            # END exception handling
+        # END handle regions
 
     def _copy_from(self, rhs):
         """Copy all data from rhs into this instance, handles usage count"""
@@ -121,11 +122,11 @@ class WindowCursor(object):
         # offset too large ?
         if offset >= fsize:
             return self
-        #END handle offset
+        # END handle offset
 
         if need_region:
             self._region = man._obtain_region(self._rlist, offset, size, flags, False)
-        #END need region handling
+        # END need region handling
 
         self._region.increment_usage_count()
         self._ofs = offset - self._region._b
@@ -221,13 +222,14 @@ class WindowCursor(object):
         :raise ValueError: if the mapping was not created by a file descriptor"""
         if isinstance(self._rlist.path_or_fd(), string_types()):
             raise ValueError("File descriptor queried although mapping was generated from path")
-        #END handle type
+        # END handle type
         return self._rlist.path_or_fd()
 
     #} END interface
 
 
 class StaticWindowMapManager(object):
+
     """Provides a manager which will produce single size cursors that are allowed
     to always map the whole file.
 
@@ -240,13 +242,13 @@ class StaticWindowMapManager(object):
     accommodate this fact"""
 
     __slots__ = [
-                    '_fdict',           # mapping of path -> StorageHelper (of some kind
-                    '_window_size',     # maximum size of a window
-                    '_max_memory_size', # maximum amount of memory we may allocate
-                    '_max_handle_count',        # maximum amount of handles to keep open
-                    '_memory_size',     # currently allocated memory size
-                    '_handle_count',        # amount of currently allocated file handles
-                ]
+        '_fdict',           # mapping of path -> StorageHelper (of some kind
+        '_window_size',     # maximum size of a window
+        '_max_memory_size',  # maximum amount of memory we may allocate
+        '_max_handle_count',        # maximum amount of handles to keep open
+        '_memory_size',     # currently allocated memory size
+        '_handle_count',        # amount of currently allocated file handles
+    ]
 
     #{ Configuration
     MapRegionListCls = MapRegionList
@@ -279,7 +281,7 @@ class StaticWindowMapManager(object):
             coeff = 64
             if is_64_bit():
                 coeff = 1024
-            #END handle arch
+            # END handle arch
             self._window_size = coeff * self._MB_in_bytes
         # END handle max window size
 
@@ -287,9 +289,9 @@ class StaticWindowMapManager(object):
             coeff = 1024
             if is_64_bit():
                 coeff = 8192
-            #END handle arch
+            # END handle arch
             self._max_memory_size = coeff * self._MB_in_bytes
-        #END handle max memory size
+        # END handle max memory size
 
     #{ Internal Methods
 
@@ -310,23 +312,23 @@ class StaticWindowMapManager(object):
             for regions in self._fdict.values():
                 for region in regions:
                     # check client count - consider that we keep one reference ourselves !
-                    if (region.client_count()-2 == 0 and
-                        (lru_region is None or region._uc < lru_region._uc)):
+                    if (region.client_count() - 2 == 0 and
+                            (lru_region is None or region._uc < lru_region._uc)):
                         lru_region = region
                         lru_list = regions
                     # END update lru_region
-                #END for each region
-            #END for each regions list
+                # END for each region
+            # END for each regions list
 
             if lru_region is None:
                 break
-            #END handle region not found
+            # END handle region not found
 
             num_found += 1
             del(lru_list[lru_list.index(lru_region)])
             self._memory_size -= lru_region.size()
             self._handle_count -= 1
-        #END while there is more memory to free
+        # END while there is more memory to free
         return num_found
 
     def _obtain_region(self, a, offset, size, flags, is_recursive):
@@ -336,7 +338,7 @@ class StaticWindowMapManager(object):
         :return: The newly created region"""
         if self._memory_size + size > self._max_memory_size:
             self._collect_lru_region(size)
-        #END handle collection
+        # END handle collection
 
         r = None
         if a:
@@ -354,10 +356,10 @@ class StaticWindowMapManager(object):
                     # we already tried this, and still have no success in obtaining
                     # a mapping. This is an exception, so we propagate it
                     raise
-                #END handle existing recursion
+                # END handle existing recursion
                 self._collect_lru_region(0)
                 return self._obtain_region(a, offset, size, flags, True)
-            #END handle exceptions
+            # END handle exceptions
 
             self._handle_count += 1
             self._memory_size += r.size()
@@ -404,7 +406,7 @@ class StaticWindowMapManager(object):
 
     def num_open_files(self):
         """Amount of opened files in the system"""
-        return reduce(lambda x, y: x+y, (1 for rlist in self._fdict.values() if len(rlist) > 0), 0)
+        return reduce(lambda x, y: x + y, (1 for rlist in self._fdict.values() if len(rlist) > 0), 0)
 
     def window_size(self):
         """:return: size of each window when allocating new regions"""
@@ -441,7 +443,7 @@ class StaticWindowMapManager(object):
         **Note:** does nothing on non-windows platforms"""
         if sys.platform != 'win32':
             return
-        #END early bailout
+        # END early bailout
 
         num_closed = 0
         for path, rlist in self._fdict.items():
@@ -449,13 +451,14 @@ class StaticWindowMapManager(object):
                 for region in rlist:
                     region._mf.close()
                     num_closed += 1
-            #END path matches
-        #END for each path
+            # END path matches
+        # END for each path
         return num_closed
     #} END special purpose interface
 
 
 class SlidingWindowMapManager(StaticWindowMapManager):
+
     """Maintains a list of ranges of mapped memory regions in one or more files and allows to easily
     obtain additional regions assuring there is no overlap.
     Once a certain memory limit is reached globally, or if there cannot be more open file handles
@@ -482,18 +485,18 @@ class SlidingWindowMapManager(StaticWindowMapManager):
         lo = 0
         hi = len(a)
         while lo < hi:
-            mid = (lo+hi)//2
+            mid = (lo + hi) // 2
             ofs = a[mid]._b
             if ofs <= offset:
                 if a[mid].includes_ofs(offset):
                     r = a[mid]
                     break
-                #END have region
-                lo = mid+1
+                # END have region
+                lo = mid + 1
             else:
                 hi = mid
-            #END handle position
-        #END while bisecting
+            # END handle position
+        # END while bisecting
 
         if r is None:
             window_size = self._window_size
@@ -506,7 +509,7 @@ class SlidingWindowMapManager(StaticWindowMapManager):
             # Save calls !
             if self._memory_size + window_size > self._max_memory_size:
                 self._collect_lru_region(window_size)
-            #END handle collection
+            # END handle collection
 
             # we assume the list remains sorted by offset
             insert_pos = 0
@@ -514,7 +517,7 @@ class SlidingWindowMapManager(StaticWindowMapManager):
             if len_regions == 1:
                 if a[0]._b <= offset:
                     insert_pos = 1
-                #END maintain sort
+                # END maintain sort
             else:
                 # find insert position
                 insert_pos = len_regions
@@ -522,8 +525,8 @@ class SlidingWindowMapManager(StaticWindowMapManager):
                     if region._b > offset:
                         insert_pos = i
                         break
-                    #END if insert position is correct
-                #END for each region
+                    # END if insert position is correct
+                # END for each region
             # END obtain insert pos
 
             # adjust the actual offset and size values to create the largest
@@ -531,13 +534,13 @@ class SlidingWindowMapManager(StaticWindowMapManager):
             if insert_pos == 0:
                 if len_regions:
                     right = self.MapWindowCls.from_region(a[insert_pos])
-                #END adjust right side
+                # END adjust right side
             else:
                 if insert_pos != len_regions:
                     right = self.MapWindowCls.from_region(a[insert_pos])
                 # END adjust right window
                 left = self.MapWindowCls.from_region(a[insert_pos - 1])
-            #END adjust surrounding windows
+            # END adjust surrounding windows
 
             mid.extend_left_to(left, window_size)
             mid.extend_right_to(right, window_size)
@@ -546,13 +549,13 @@ class SlidingWindowMapManager(StaticWindowMapManager):
             # it can happen that we align beyond the end of the file
             if mid.ofs_end() > right.ofs:
                 mid.size = right.ofs - mid.ofs
-            #END readjust size
+            # END readjust size
 
             # insert new region at the right offset to keep the order
             try:
                 if self._handle_count >= self._max_handle_count:
                     raise Exception
-                #END assert own imposed max file handles
+                # END assert own imposed max file handles
                 r = self.MapRegionCls(a.path_or_fd(), mid.ofs, mid.size, flags)
             except Exception:
                 # apparently we are out of system resources or hit a limit
@@ -563,10 +566,10 @@ class SlidingWindowMapManager(StaticWindowMapManager):
                     # we already tried this, and still have no success in obtaining
                     # a mapping. This is an exception, so we propagate it
                     raise
-                #END handle existing recursion
+                # END handle existing recursion
                 self._collect_lru_region(0)
                 return self._obtain_region(a, offset, size, flags, True)
-            #END handle exceptions
+            # END handle exceptions
 
             self._handle_count += 1
             self._memory_size += r.size()
