@@ -3,6 +3,8 @@ import sys
 
 __all__ = ["SlidingWindowMapBuffer"]
 
+import sys
+
 try:
     bytes
 except NameError:
@@ -79,16 +81,31 @@ class SlidingWindowMapBuffer(object):
             ofs = i
             # It's fastest to keep tokens and join later, especially in py3, which was 7 times slower
             # in the previous iteration of this code
-            md = list()
-            while l:
-                c.use_region(ofs, l)
-                assert c.is_valid()
-                d = c.buffer()[:l]
-                ofs += len(d)
-                l -= len(d)
-                md.append(d)
-            # END while there are bytes to read
-            return bytes().join(md)
+            pyvers = sys.version_info[:2]
+            if (3, 0) <= pyvers <= (3, 3):
+                # Memory view cannot be joined below python 3.4 ... 
+                out = bytes()
+                while l:
+                    c.use_region(ofs, l)
+                    assert c.is_valid()
+                    d = c.buffer()[:l]
+                    ofs += len(d)
+                    l -= len(d)
+                    # This is slower than the join ... but what can we do ... 
+                    out += d
+                # END while there are bytes to read
+                return out
+            else:
+                md = list()
+                while l:
+                    c.use_region(ofs, l)
+                    assert c.is_valid()
+                    d = c.buffer()[:l]
+                    ofs += len(d)
+                    l -= len(d)
+                    md.append(d)
+                # END while there are bytes to read
+                return bytes().join(md)
         # END fast or slow path
     #{ Interface
 
