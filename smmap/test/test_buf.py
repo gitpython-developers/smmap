@@ -12,7 +12,6 @@ from random import randint
 from time import time
 import sys
 import os
-import logging
 
 
 man_optimal = SlidingWindowMapManager()
@@ -104,6 +103,7 @@ class TestBuf(TestBase):
                             assert len(d) == ofs_end - ofs_start
                             assert d == data[ofs_start:ofs_end]
                             num_bytes += len(d)
+                            del d
                         else:
                             pos = randint(0, fsize)
                             assert buf[pos] == data[pos]
@@ -122,6 +122,7 @@ class TestBuf(TestBase):
                           % (man_id, max_num_accesses, mode_str, type(item), num_bytes / mb, elapsed, (num_bytes / mb) / elapsed),
                           file=sys.stderr)
                 # END handle access mode
+                del buf
             # END for each manager
         # END for each input
         os.close(fd)

@@ -3,7 +3,7 @@ Changelog
 #########
 
 **********
-v0.8.6
+v0.9.0
 **********
 - Fixed issue with resources never being freed as mmaps were never closed.
 - Client counting is now done manually, instead of relying on pyton's reference count

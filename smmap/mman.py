@@ -58,7 +58,7 @@ class WindowCursor(object):
                     # Free all resources associated with the mapped file
                     self._manager._fdict.pop(self._rlist.path_or_fd())
                 # END remove regions list from manager
-            except TypeError:
+            except (TypeError, KeyError):
                 # sometimes, during shutdown, getrefcount is None. Its possible
                 # to re-import it, however, its probably better to just ignore
                 # this python problem (for now).
@@ -70,10 +70,13 @@ class WindowCursor(object):
     def _copy_from(self, rhs):
         """Copy all data from rhs into this instance, handles usage count"""
         self._manager = rhs._manager
-        self._rlist = rhs._rlist
+        self._rlist = type(rhs._rlist)(rhs._rlist)
         self._region = rhs._region
         self._ofs = rhs._ofs
         self._size = rhs._size
+
+        for region in self._rlist:
+            region.increment_client_count()
 
         if self._region is not None:
             self._region.increment_client_count()
