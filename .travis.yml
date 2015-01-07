@@ -10,6 +10,8 @@ python:
 install:
   - pip install coveralls
 script:
+  - ulimit -n 48
+  - ulimit -n
   - nosetests --with-coverage
 after_success:
   - coveralls
