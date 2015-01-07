@@ -8,7 +8,6 @@ from .util import (
     buffer,
 )
 
-from weakref import ref
 import sys
 from functools import reduce
 
@@ -55,12 +54,11 @@ class WindowCursor(object):
             # Actual client count, which doesn't include the reference kept by the manager, nor ours
             # as we are about to be deleted
             try:
-                num_clients = self._rlist.client_count() - 2
-                if num_clients == 0 and len(self._rlist) == 0:
+                if len(self._rlist) == 0:
                     # Free all resources associated with the mapped file
                     self._manager._fdict.pop(self._rlist.path_or_fd())
                 # END remove regions list from manager
-            except TypeError:
+            except (TypeError, KeyError):
                 # sometimes, during shutdown, getrefcount is None. Its possible
                 # to re-import it, however, its probably better to just ignore
                 # this python problem (for now).
@@ -72,13 +70,16 @@ class WindowCursor(object):
     def _copy_from(self, rhs):
         """Copy all data from rhs into this instance, handles usage count"""
         self._manager = rhs._manager
-        self._rlist = rhs._rlist
+        self._rlist = type(rhs._rlist)(rhs._rlist)
         self._region = rhs._region
         self._ofs = rhs._ofs
         self._size = rhs._size
 
+        for region in self._rlist:
+            region.increment_client_count()
+
         if self._region is not None:
-            self._region.increment_usage_count()
+            self._region.increment_client_count()
         # END handle regions
 
     def __copy__(self):
@@ -126,20 +127,22 @@ class WindowCursor(object):
 
         if need_region:
             self._region = man._obtain_region(self._rlist, offset, size, flags, False)
+            self._region.increment_client_count()
         # END need region handling
 
-        self._region.increment_usage_count()
         self._ofs = offset - self._region._b
         self._size = min(size, self._region.ofs_end() - offset)
 
         return self
 
     def unuse_region(self):
-        """Unuse the ucrrent region. Does nothing if we have no current region
+        """Unuse the current region. Does nothing if we have no current region
 
         **Note:** the cursor unuses the region automatically upon destruction. It is recommended
         to un-use the region once you are done reading from it in persistent cursors as it
         helps to free up resource more quickly"""
+        if self._region is not None:
+            self._region.increment_client_count(-1)
         self._region = None
         # note: should reset ofs and size, but we spare that for performance. Its not
         # allowed to query information if we are not valid !
@@ -184,12 +187,10 @@ class WindowCursor(object):
         """:return: amount of bytes we point to"""
         return self._size
 
-    def region_ref(self):
-        """:return: weak ref to our mapped region.
+    def region(self):
+        """:return: our mapped region, or None if nothing is mapped yet
         :raise AssertionError: if we have no current region. This is only useful for debugging"""
-        if self._region is None:
-            raise AssertionError("region not set")
-        return ref(self._region)
+        return self._region
 
     def includes_ofs(self, ofs):
         """:return: True if the given absolute offset is contained in the cursors
@@ -311,8 +312,8 @@ class StaticWindowMapManager(object):
             lru_list = None
             for regions in self._fdict.values():
                 for region in regions:
-                    # check client count - consider that we keep one reference ourselves !
-                    if (region.client_count() - 2 == 0 and
+                    # check client count - if it's 1, it's just us
+                    if (region.client_count() == 1 and
                             (lru_region is None or region._uc < lru_region._uc)):
                         lru_region = region
                         lru_list = regions
@@ -326,6 +327,7 @@ class StaticWindowMapManager(object):
 
             num_found += 1
             del(lru_list[lru_list.index(lru_region)])
+            lru_region.increment_client_count(-1)
             self._memory_size -= lru_region.size()
             self._handle_count -= 1
         # END while there is more memory to free
@@ -449,7 +451,7 @@ class StaticWindowMapManager(object):
         for path, rlist in self._fdict.items():
             if path.startswith(base_path):
                 for region in rlist:
-                    region._mf.close()
+                    region.release()
                     num_closed += 1
             # END path matches
         # END for each path

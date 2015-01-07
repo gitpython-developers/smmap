@@ -88,12 +88,7 @@ class TestMMan(TestBase):
         # auto-refcount
         assert rfull.client_count() == 1
         rfull2 = rfull
-        assert rfull.client_count() == 2
-
-        # usage
-        assert rfull.usage_count() == 0
-        rfull.increment_usage_count()
-        assert rfull.usage_count() == 1
+        assert rfull.client_count() == 1, "no auto-counting"
 
         # window constructor
         w = MapWindow.from_region(rfull)
@@ -105,8 +100,6 @@ class TestMMan(TestBase):
         fd = os.open(fc.path, os.O_RDONLY)
         for item in (fc.path, fd):
             ml = MapRegionList(item)
-
-            assert ml.client_count() == 1
 
             assert len(ml) == 0
             assert ml.path_or_fd() == item

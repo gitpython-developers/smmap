@@ -93,6 +93,7 @@ class SlidingWindowMapBuffer(object):
                     l -= len(d)
                     # This is slower than the join ... but what can we do ... 
                     out += d
+                    del(d)
                 # END while there are bytes to read
                 return out
             else:
@@ -103,6 +104,10 @@ class SlidingWindowMapBuffer(object):
                     d = c.buffer()[:l]
                     ofs += len(d)
                     l -= len(d)
+                    # Make sure we don't keep references, as c.use_region() might attempt to free resources, but 
+                    # can't unless we use pure bytes
+                    if hasattr(d, 'tobytes'):
+                        d = d.tobytes()
                     md.append(d)
                 # END while there are bytes to read
                 return bytes().join(md)
