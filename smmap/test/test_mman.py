@@ -119,21 +119,21 @@ class TestMMan(TestBase):
                 # window size is 0 for static managers, hence size will be 0. We take that into consideration
                 size = man.window_size() // 2
                 assert c.use_region(base_offset, size).is_valid()
-                rr = c.region_ref()
-                assert rr().client_count() == 2  # the manager and the cursor and us
+                rr = c.region()
+                assert rr.client_count() == 2  # the manager and the cursor and us
 
                 assert man.num_open_files() == 1
                 assert man.num_file_handles() == 1
-                assert man.mapped_memory_size() == rr().size()
+                assert man.mapped_memory_size() == rr.size()
 
                 # assert c.size() == size        # the cursor may overallocate in its static version
                 assert c.ofs_begin() == base_offset
-                assert rr().ofs_begin() == 0        # it was aligned and expanded
+                assert rr.ofs_begin() == 0        # it was aligned and expanded
                 if man.window_size():
                     # but isn't larger than the max window (aligned)
-                    assert rr().size() == align_to_mmap(man.window_size(), True)
+                    assert rr.size() == align_to_mmap(man.window_size(), True)
                 else:
-                    assert rr().size() == fc.size
+                    assert rr.size() == fc.size
                 # END ignore static managers which dont use windows and are aligned to file boundaries
 
                 assert c.buffer()[:] == data[base_offset:base_offset + (size or c.size())]
@@ -141,7 +141,7 @@ class TestMMan(TestBase):
                 # obtain second window, which spans the first part of the file - it is a still the same window
                 nsize = (size or fc.size) - 10
                 assert c.use_region(0, nsize).is_valid()
-                assert c.region_ref()() == rr()
+                assert c.region() == rr
                 assert man.num_file_handles() == 1
                 assert c.size() == nsize
                 assert c.ofs_begin() == 0
@@ -154,15 +154,15 @@ class TestMMan(TestBase):
                 if man.window_size():
                     assert man.num_file_handles() == 2
                     assert c.size() < size
-                    assert c.region_ref()() is not rr()  # old region is still available, but has not curser ref anymore
-                    assert rr().client_count() == 1  # only held by manager
+                    assert c.region() is not rr  # old region is still available, but has not curser ref anymore
+                    assert rr.client_count() == 1  # only held by manager
                 else:
                     assert c.size() < fc.size
                 # END ignore static managers which only have one handle per file
-                rr = c.region_ref()
-                assert rr().client_count() == 2  # manager + cursor
-                assert rr().ofs_begin() < c.ofs_begin()  # it should have extended itself to the left
-                assert rr().ofs_end() <= fc.size  # it cannot be larger than the file
+                rr = c.region()
+                assert rr.client_count() == 2  # manager + cursor
+                assert rr.ofs_begin() < c.ofs_begin()  # it should have extended itself to the left
+                assert rr.ofs_end() <= fc.size  # it cannot be larger than the file
                 assert c.buffer()[:] == data[base_offset:base_offset + (size or c.size())]
 
                 # unising a region makes the cursor invalid

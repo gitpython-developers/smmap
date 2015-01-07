@@ -177,6 +177,8 @@ class MapRegion(object):
                 os.close(fd)
             # END only close it if we opened it
         # END close file handle
+        # We assume the first one to use us keeps us around
+        self.increment_client_count()
 
     def _read_into_memory(self, fd, offset, size):
         """:return: string data as read from the given file descriptor, offset and size """
@@ -222,17 +224,25 @@ class MapRegion(object):
 
     def client_count(self):
         """:return: number of clients currently using this region"""
-        from sys import getrefcount
-        # -1: self on stack, -1 self in this method, -1 self in getrefcount
-        return getrefcount(self) - 3
-
-    def usage_count(self):
-        """:return: amount of usages so far"""
         return self._uc
 
-    def increment_usage_count(self):
-        """Adjust the usage count by the given positive or negative offset"""
-        self._uc += 1
+    def increment_client_count(self, ofs = 1):
+        """Adjust the usage count by the given positive or negative offset.
+        If usage count equals 0, we will auto-release our resources
+        :return: True if we released resources, False otherwise. In the latter case, we can still be used"""
+        self._uc += ofs
+        assert self._uc > -1, "Increments must match decrements, usage counter negative: %i" % self._uc
+
+        if self.client_count() == 0:
+            self.release()
+            return True
+        else:
+            return False
+        # end handle release
+
+    def release(self):
+        """Release all resources this instance might hold. Must only be called if there usage_count() is zero"""
+        self._mf.close()
 
     # re-define all methods which need offset adjustments in compatibility mode
     if _need_compat_layer:
@@ -267,11 +277,6 @@ class MapRegionList(list):
     def __init__(self, path_or_fd):
         self._path_or_fd = path_or_fd
         self._file_size = None
-
-    def client_count(self):
-        """:return: amount of clients which hold a reference to this instance"""
-        from sys import getrefcount
-        return getrefcount(self) - 3
 
     def path_or_fd(self):
         """:return: path or file descriptor we are attached to"""
