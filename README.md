@@ -10,6 +10,8 @@ Although memory maps have many advantages, they represent a very limited system 
 
 [![Build Status](https://travis-ci.org/Byron/smmap.svg?branch=master)](https://travis-ci.org/Byron/smmap)
 [![Coverage Status](https://coveralls.io/repos/Byron/smmap/badge.png)](https://coveralls.io/r/Byron/smmap)
+[![Issue Stats](http://www.issuestats.com/github/gitpython-developers/smmap/badge/pr)](http://www.issuestats.com/github/gitpython-developers/smmap)
+[![Issue Stats](http://www.issuestats.com/github/gitpython-developers/smmap/badge/issue)](http://www.issuestats.com/github/gitpython-developers/smmap)
 
 Smmap wraps an interface around mmap and tracks the mapped files as well as the amount of clients who use it. If the system runs out of resources, or if a memory limit is reached, it will automatically unload unused maps to allow continued operation.
 
