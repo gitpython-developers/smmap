@@ -8,8 +8,8 @@ Although memory maps have many advantages, they represent a very limited system 
 
 ## Overview
 
-[![Build Status](https://travis-ci.org/Byron/smmap.svg?branch=master)](https://travis-ci.org/Byron/smmap)
-[![Coverage Status](https://coveralls.io/repos/Byron/smmap/badge.png)](https://coveralls.io/r/Byron/smmap)
+[![Build Status](https://travis-ci.org/gitpython-developers/smmap.svg?branch=master)](https://travis-ci.org/gitpython-developers/smmap)
+[![Coverage Status](https://coveralls.io/repos/gitpython-developers/smmap/badge.png)](https://coveralls.io/r/gitpython-developers/smmap)
 [![Issue Stats](http://www.issuestats.com/github/gitpython-developers/smmap/badge/pr)](http://www.issuestats.com/github/gitpython-developers/smmap)
 [![Issue Stats](http://www.issuestats.com/github/gitpython-developers/smmap/badge/issue)](http://www.issuestats.com/github/gitpython-developers/smmap)
 
@@ -63,7 +63,7 @@ It is advised to have a look at the **Usage Guide** for a brief introduction on 
 
 ## Homepage and Links
 
-The project is home on github at https://github.com/Byron/smmap .
+The project is home on github at https://github.com/gitpython-developers/smmap .
 
 The latest source can be cloned from github as well:
 
@@ -77,7 +77,7 @@ For support, please use the git-python mailing list:
 
 Issues can be filed on github:
 
-* https://github.com/Byron/smmap/issues
+* https://github.com/gitpython-developers/smmap/issues
  
 
 ## License Information

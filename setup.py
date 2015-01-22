@@ -13,7 +13,7 @@ import smmap
 if os.path.exists("README.md"):
     long_description = codecs.open('README.md', "r", "utf-8").read()
 else:
-    long_description = "See http://github.com/Byron/smmap"
+    long_description = "See http://github.com/gitpython-developers/smmap"
 
 setup(
     name="smmap",

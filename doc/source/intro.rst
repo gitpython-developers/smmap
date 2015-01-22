@@ -51,7 +51,7 @@ It is advised to have a look at the :ref:`Usage Guide <tutorial-label>` for a br
 ##################
 Homepage and Links
 ##################
-The project is home on github at `https://github.com/Byron/smmap <https://github.com/Byron/smmap>`_.
+The project is home on github at `https://github.com/gitpython-developers/smmap <https://github.com/gitpython-developers/smmap>`_.
 
 The latest source can be cloned from github as well:
 
@@ -65,7 +65,7 @@ For support, please use the git-python mailing list:
 
 Issues can be filed on github:
 
- * https://github.com/Byron/smmap/issues
+ * https://github.com/gitpython-developers/smmap/issues
  
 ###################
 License Information
