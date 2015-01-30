@@ -131,6 +131,7 @@ class WindowCursor(object):
         # END need region handling
 
         self._ofs = offset - self._region._b
+        assert(self._ofs > -1)
         self._size = min(size, self._region.ofs_end() - offset)
 
         return self
