@@ -76,14 +76,6 @@ class TestMMan(TestBase):
 
         assert rfull.includes_ofs(0) and rfull.includes_ofs(fc.size - 1) and rfull.includes_ofs(half_size)
         assert not rfull.includes_ofs(-1) and not rfull.includes_ofs(sys.maxsize)
-        # with the values we have, this test only works on windows where an alignment
-        # size of 4096 is assumed.
-        # We only test on linux as it is inconsitent between the python versions
-        # as they use different mapping techniques to circumvent the missing offset
-        # argument of mmap.
-        if sys.platform != 'win32':
-            assert rhalfofs.includes_ofs(rofs) and not rhalfofs.includes_ofs(0)
-        # END handle platforms
 
         # auto-refcount
         assert rfull.client_count() == 1

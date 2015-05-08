@@ -1,7 +1,6 @@
 """Module containing a memory memory manager which provides a sliding window on a number of memory mapped files"""
 import os
 import sys
-import mmap
 
 from mmap import mmap, ACCESS_READ
 try:
