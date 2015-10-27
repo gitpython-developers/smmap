@@ -18,7 +18,7 @@ else:
 setup(
     name="smmap",
     version=smmap.__version__,
-    description="A pure git implementation of a sliding window memory map manager",
+    description="A pure python implementation of a sliding window memory map manager",
     author=smmap.__author__,
     author_email=smmap.__contact__,
     url=smmap.__homepage__,
