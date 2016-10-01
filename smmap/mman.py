@@ -46,6 +46,12 @@ class WindowCursor(object):
     def __del__(self):
         self._destroy()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._destroy()
+
     def _destroy(self):
         """Destruction code to decrement counters"""
         self.unuse_region()

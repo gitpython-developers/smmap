@@ -47,6 +47,12 @@ class SlidingWindowMapBuffer(object):
     def __del__(self):
         self.end_access()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.end_access()
+
     def __len__(self):
         return self._size
 
@@ -83,7 +89,7 @@ class SlidingWindowMapBuffer(object):
             # in the previous iteration of this code
             pyvers = sys.version_info[:2]
             if (3, 0) <= pyvers <= (3, 3):
-                # Memory view cannot be joined below python 3.4 ... 
+                # Memory view cannot be joined below python 3.4 ...
                 out = bytes()
                 while l:
                     c.use_region(ofs, l)
@@ -91,7 +97,7 @@ class SlidingWindowMapBuffer(object):
                     d = c.buffer()[:l]
                     ofs += len(d)
                     l -= len(d)
-                    # This is slower than the join ... but what can we do ... 
+                    # This is slower than the join ... but what can we do ...
                     out += d
                     del(d)
                 # END while there are bytes to read
@@ -104,7 +110,7 @@ class SlidingWindowMapBuffer(object):
                     d = c.buffer()[:l]
                     ofs += len(d)
                     l -= len(d)
-                    # Make sure we don't keep references, as c.use_region() might attempt to free resources, but 
+                    # Make sure we don't keep references, as c.use_region() might attempt to free resources, but
                     # can't unless we use pure bytes
                     if hasattr(d, 'tobytes'):
                         d = d.tobytes()
