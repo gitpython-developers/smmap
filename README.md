@@ -9,6 +9,7 @@ Although memory maps have many advantages, they represent a very limited system 
 ## Overview
 
 [![Build Status](https://travis-ci.org/gitpython-developers/smmap.svg?branch=master)](https://travis-ci.org/gitpython-developers/smmap)
+[![Build status](https://ci.appveyor.com/api/projects/status/h8rl7thsr42oc0pf?svg=true&passingText=windows%20OK&failingText=windows%20failed)](https://ci.appveyor.com/project/Byron/smmap)
 [![Coverage Status](https://coveralls.io/repos/gitpython-developers/smmap/badge.png)](https://coveralls.io/r/gitpython-developers/smmap)
 [![Issue Stats](http://www.issuestats.com/github/gitpython-developers/smmap/badge/pr)](http://www.issuestats.com/github/gitpython-developers/smmap)
 [![Issue Stats](http://www.issuestats.com/github/gitpython-developers/smmap/badge/issue)](http://www.issuestats.com/github/gitpython-developers/smmap)
@@ -44,15 +45,15 @@ The package was tested on all of the previously mentioned configurations.
 [![Documentation Status](https://readthedocs.org/projects/smmap/badge/?version=latest)](https://readthedocs.org/projects/smmap/?badge=latest)
 
 Its easiest to install smmap using the [pip](http://www.pip-installer.org/en/latest) program:
-    
+
 ```bash
 $ pip install smmap
 ```
-    
+
 As the command will install smmap in your respective python distribution, you will most likely need root permissions to authorize the required changes.
 
 If you have downloaded the source archive, the package can be installed by running the `setup.py` script:
-    
+
 ```bash
 $ python setup.py install
 ```
@@ -68,17 +69,17 @@ The project is home on github at https://github.com/gitpython-developers/smmap .
 The latest source can be cloned from github as well:
 
 * git://github.com/gitpython-developers/smmap.git
- 
- 
+
+
 For support, please use the git-python mailing list:
 
 * http://groups.google.com/group/git-python
- 
+
 
 Issues can be filed on github:
 
 * https://github.com/gitpython-developers/smmap/issues
- 
+
 
 ## License Information
 
