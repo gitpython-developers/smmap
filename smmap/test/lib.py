@@ -21,10 +21,9 @@ class FileCreator(object):
         self._path = tempfile.mktemp(prefix=prefix)
         self._size = size
 
-        fp = open(self._path, "wb")
-        fp.seek(size - 1)
-        fp.write(b'1')
-        fp.close()
+        with open(self._path, "wb") as fp:
+            fp.seek(size - 1)
+            fp.write(b'1')
 
         assert os.path.getsize(self.path) == size
 
@@ -34,6 +33,12 @@ class FileCreator(object):
         except OSError:
             pass
         # END exception handling
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.__del__()
 
     @property
     def path(self):
