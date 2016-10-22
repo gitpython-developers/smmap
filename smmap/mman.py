@@ -31,9 +31,9 @@ class WindowCursor(object):
     __slots__ = (
         '_manager',  # the manger keeping all file regions
         '_rlist',   # a regions list with regions for our file
-                    '_region',  # our current region or None
-                    '_ofs',     # relative offset from the actually mapped area to our start area
-                    '_size'     # maximum size we should provide
+        '_region',  # our current class:`MapRegion` or None
+        '_ofs',     # relative offset from the actually mapped area to our start area
+        '_size'     # maximum size we should provide
     )
 
     def __init__(self, manager=None, regions=None):
@@ -308,10 +308,14 @@ class StaticWindowMapManager(object):
             if 0, we try to free any available region
         :return: Amount of freed regions
 
-        **Note:** We don't raise exceptions anymore, in order to keep the system working, allowing temporary overallocation.
-        If the system runs out of memory, it will tell.
+        .. Note::
+            We don't raise exceptions anymore, in order to keep the system working, allowing temporary overallocation.
+            If the system runs out of memory, it will tell.
 
-        **todo:** implement a case where all unusued regions are discarded efficiently. Currently its only brute force"""
+        .. TODO::
+            implement a case where all unusued regions are discarded efficiently.
+            Currently its only brute force
+        """
         num_found = 0
         while (size == 0) or (self._memory_size + size > self._max_memory_size):
             lru_region = None

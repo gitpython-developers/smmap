@@ -116,16 +116,13 @@ class MapRegion(object):
         '_size',  # cached size of our memory map
         '__weakref__'
     ]
-    _need_compat_layer = sys.version_info[0] < 3 and sys.version_info[1] < 6
+    _need_compat_layer = sys.version_info[:2] < (2, 6)
 
     if _need_compat_layer:
         __slots__.append('_mfb')        # mapped memory buffer to provide offset
     # END handle additional slot
 
     #{ Configuration
-    # Used for testing only. If True, all data will be loaded into memory at once.
-    # This makes sure no file handles will remain open.
-    _test_read_into_memory = False
     #} END configuration
 
     def __init__(self, path_or_fd, ofs, size, flags=0):
@@ -160,10 +157,7 @@ class MapRegion(object):
             # bark that the size is too large ... many extra file accesses because
             # if this ... argh !
             actual_size = min(os.fstat(fd).st_size - sizeofs, corrected_size)
-            if self._test_read_into_memory:
-                self._mf = self._read_into_memory(fd, ofs, actual_size)
-            else:
-                self._mf = mmap(fd, actual_size, **kwargs)
+            self._mf = mmap(fd, actual_size, **kwargs)
             # END handle memory mode
 
             self._size = len(self._mf)
@@ -178,19 +172,6 @@ class MapRegion(object):
         # END close file handle
         # We assume the first one to use us keeps us around
         self.increment_client_count()
-
-    def _read_into_memory(self, fd, offset, size):
-        """:return: string data as read from the given file descriptor, offset and size """
-        os.lseek(fd, offset, os.SEEK_SET)
-        mf = ''
-        bytes_todo = size
-        while bytes_todo:
-            chunk = 1024 * 1024
-            d = os.read(fd, chunk)
-            bytes_todo -= len(d)
-            mf += d
-        # END loop copy items
-        return mf
 
     def __repr__(self):
         return "MapRegion<%i, %i>" % (self._b, self.size())
@@ -267,7 +248,7 @@ class MapRegionList(list):
     """List of MapRegion instances associating a path with a list of regions."""
     __slots__ = (
         '_path_or_fd',  # path or file descriptor which is mapped by all our regions
-        '_file_size'        # total size of the file we map
+        '_file_size'    # total size of the file we map
     )
 
     def __new__(cls, path):
