@@ -8,8 +8,12 @@ python:
   - 3.3
   - 3.4
   - 3.5
+env:
+  # test with paths containing the unicode characters
+  - TMPDIR="/tmp/καλημέρα"
 install:
   - pip install coveralls
+  - ln -s /tmp "$TMPDIR"
 script:
   - ulimit -n 48
   - ulimit -n
