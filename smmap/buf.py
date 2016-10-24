@@ -3,12 +3,11 @@ import sys
 
 __all__ = ["SlidingWindowMapBuffer"]
 
-import sys
 
 try:
     bytes
 except NameError:
-    bytes = str
+    bytes = str  # @ReservedAssignment
 
 
 class SlidingWindowMapBuffer(object):
@@ -103,7 +102,7 @@ class SlidingWindowMapBuffer(object):
                 # END while there are bytes to read
                 return out
             else:
-                md = list()
+                md = []
                 while l:
                     c.use_region(ofs, l)
                     assert c.is_valid()

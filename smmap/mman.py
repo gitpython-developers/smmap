@@ -483,7 +483,7 @@ class SlidingWindowMapManager(StaticWindowMapManager):
         a safe amount of memory already, which would possibly cause memory allocations to fail as our address
         space is full."""
 
-    __slots__ = tuple()
+    __slots__ = ()
 
     def __init__(self, window_size=-1, max_memory_size=0, max_open_handles=sys.maxsize):
         """Adjusts the default window size to -1"""

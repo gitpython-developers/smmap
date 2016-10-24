@@ -7,5 +7,5 @@ version_info = (2, 1, 0, 'dev1')
 __version__ = '.'.join(str(i) for i in version_info)
 
 # make everything available in root package for convenience
-from .mman import *
-from .buf import *
+from .mman import *  # @IgnorePep8
+from .buf import *   # @IgnorePep8
