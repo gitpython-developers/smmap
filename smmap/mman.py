@@ -133,7 +133,7 @@ class WindowCursor(object):
             self._region.increment_client_count()
         # END need region handling
 
-        self._ofs = offset - self._region._b
+        self._ofs = offset - self._region._ofs
         self._size = min(size, self._region.ofs_end() - offset)
 
         return self
@@ -179,12 +179,12 @@ class WindowCursor(object):
         """:return: offset to the first byte pointed to by our cursor
 
         **Note:** only if is_valid() is True"""
-        return self._region._b + self._ofs
+        return self._region._ofs + self._ofs
 
     def ofs_end(self):
         """:return: offset to one past the last available byte"""
         # unroll method calls for performance !
-        return self._region._b + self._ofs + self._size
+        return self._region._ofs + self._ofs + self._size
 
     def size(self):
         """:return: amount of bytes we point to"""
@@ -201,7 +201,7 @@ class WindowCursor(object):
 
         **Note:** cursor must be valid for this to work"""
         # unroll methods
-        return (self._region._b + self._ofs) <= ofs < (self._region._b + self._ofs + self._size)
+        return (self._region._ofs + self._ofs) <= ofs < (self._region._ofs + self._ofs + self._size)
 
     def file_size(self):
         """:return: size of the underlying file"""
@@ -497,7 +497,7 @@ class SlidingWindowMapManager(StaticWindowMapManager):
         hi = len(a)
         while lo < hi:
             mid = (lo + hi) // 2
-            ofs = a[mid]._b
+            ofs = a[mid]._ofs
             if ofs <= offset:
                 if a[mid].includes_ofs(offset):
                     r = a[mid]
@@ -526,14 +526,14 @@ class SlidingWindowMapManager(StaticWindowMapManager):
             insert_pos = 0
             len_regions = len(a)
             if len_regions == 1:
-                if a[0]._b <= offset:
+                if a[0]._ofs <= offset:
                     insert_pos = 1
                 # END maintain sort
             else:
                 # find insert position
                 insert_pos = len_regions
                 for i, region in enumerate(a):
-                    if region._b > offset:
+                    if region._ofs > offset:
                         insert_pos = i
                         break
                     # END if insert position is correct

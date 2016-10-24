@@ -63,7 +63,7 @@ class MapWindow(object):
     """Utility type which is used to snap windows towards each other, and to adjust their size"""
     __slots__ = (
         'ofs',      # offset into the file in bytes
-        'size'              # size of the window in bytes
+        'size'      # size of the window in bytes
     )
 
     def __init__(self, offset, size):
@@ -76,7 +76,7 @@ class MapWindow(object):
     @classmethod
     def from_region(cls, region):
         """:return: new window from a region"""
-        return cls(region._b, region.size())
+        return cls(region._ofs, region.size())
 
     def ofs_end(self):
         return self.ofs + self.size
@@ -110,10 +110,10 @@ class MapRegion(object):
 
     **Note:** deallocates used region automatically on destruction"""
     __slots__ = [
-        '_b',   # beginning of mapping
+        '_ofs',   # beginning of mapping
         '_size',  # cached size of our memory map
-        '_mf',  # mapped memory chunk (as returned by mmap)
-        '_uc',  # total amount of usages
+        '_mf',    # mapped memory chunk (as returned by mmap)
+        '_uc',    # total amount of usages
         '__weakref__'
     ]
     _need_compat_layer = sys.version_info[:2] < (2, 6)
@@ -133,7 +133,7 @@ class MapRegion(object):
             allocated the the size automatically adjusted
         :param flags: additional flags to be given when opening the file.
         :raise Exception: if no memory can be allocated"""
-        self._b = ofs
+        self._ofs = ofs
         self._size = 0
         self._uc = 0
 
@@ -174,7 +174,7 @@ class MapRegion(object):
         self.increment_client_count()
 
     def __repr__(self):
-        return "MapRegion<%i, %i>" % (self._b, self.size())
+        return "MapRegion<%i, %i>" % (self._ofs, self.size())
 
     #{ Interface
 
@@ -188,7 +188,7 @@ class MapRegion(object):
 
     def ofs_begin(self):
         """:return: absolute byte offset to the first byte of the mapping"""
-        return self._b
+        return self._ofs
 
     def size(self):
         """:return: total size of the mapped region in bytes"""
@@ -196,11 +196,11 @@ class MapRegion(object):
 
     def ofs_end(self):
         """:return: Absolute offset to one byte beyond the mapping into the file"""
-        return self._b + self._size
+        return self._ofs + self._size
 
     def includes_ofs(self, ofs):
         """:return: True if the given offset can be read in our mapped region"""
-        return self._b <= ofs < self._b + self._size
+        return self._ofs <= ofs < self._ofs + self._size
 
     def client_count(self):
         """:return: number of clients currently using this region"""
@@ -227,7 +227,7 @@ class MapRegion(object):
     # re-define all methods which need offset adjustments in compatibility mode
     if _need_compat_layer:
         def size(self):
-            return self._size - self._b
+            return self._size - self._ofs
 
         def ofs_end(self):
             # always the size - we are as large as it gets
@@ -237,7 +237,7 @@ class MapRegion(object):
             return self._mfb
 
         def includes_ofs(self, ofs):
-            return self._b <= ofs < self._size
+            return self._ofs <= ofs < self._size
     # END handle compat layer
 
     #} END interface
