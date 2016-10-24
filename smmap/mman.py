@@ -43,9 +43,6 @@ class WindowCursor(object):
         self._ofs = 0
         self._size = 0
 
-    def __del__(self):
-        self._destroy()
-
     def __enter__(self):
         return self
 
@@ -401,7 +398,7 @@ class StaticWindowMapManager(object):
         **Note:** Using file descriptors directly is faster once new windows are mapped as it
         prevents the file to be opened again just for the purpose of mapping it."""
         regions = self._fdict.get(path_or_fd)
-        if regions is None:
+        if not regions or not regions.scream_if_closed():
             regions = self.MapRegionListCls(path_or_fd)
             self._fdict[path_or_fd] = regions
         # END obtain region for path

@@ -23,7 +23,7 @@ except NameError:
     # Python 3 has no `buffer`; only `memoryview`
     def buffer(obj, offset, size):
         # Actually, for gitpython this is fastest ... .
-        return memoryview(obj)[offset:offset+size]
+        return memoryview(obj)[offset:offset + size]
         # doing it directly is much faster !
         # return obj[offset:offset + size]
 
@@ -206,7 +206,7 @@ class MapRegion(object):
         """:return: number of clients currently using this region"""
         return self._uc
 
-    def increment_client_count(self, ofs = 1):
+    def increment_client_count(self, ofs=1):
         """Adjust the usage count by the given positive or negative offset.
         If usage count equals 0, we will auto-release our resources
         :return: True if we released resources, False otherwise. In the latter case, we can still be used"""
@@ -272,5 +272,11 @@ class MapRegionList(list):
             # END handle path type
         # END update file size
         return self._file_size
+
+    def scream_if_closed(self):
+        for r in self:
+            if getattr(r, '_mf.closed', None):  # > `closed` attribute PY3.2+
+                raise Exception('Found closed region: %s' % r._mf)
+        return self
 
 #} END utility classes
