@@ -273,10 +273,9 @@ class MapRegionList(list):
         # END update file size
         return self._file_size
 
-    def scream_if_closed(self):
-        for r in self:
-            if getattr(r, '_mf.closed', None):  # > `closed` attribute PY3.2+
-                raise Exception('Found closed region: %s' % r._mf)
-        return self
+    def collect_closed_regions(self):
+        """a PY3+ utility for assertions"""
+        # The `closed` attribute is PY3.2+
+        return [region for region in self if getattr(region._mf, 'closed', None)]
 
 #} END utility classes
