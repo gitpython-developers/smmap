@@ -29,10 +29,10 @@ class TestBuf(TestBase):
 
             # invalid paths fail upon construction
             c = man_optimal.make_cursor(fc.path)
-            self.assertRaises(ValueError, SlidingWindowMapBuffer, type(c)())            # invalid cursor
-            self.assertRaises(ValueError, SlidingWindowMapBuffer, c, fc.size)       # offset too large
+            self.assertRaises(ValueError, SlidingWindowMapBuffer, type(c)())   # invalid cursor
+            self.assertRaises(ValueError, SlidingWindowMapBuffer, c, fc.size)  # offset too large
 
-            buf = SlidingWindowMapBuffer()                                              # can create uninitailized buffers
+            buf = SlidingWindowMapBuffer()  # can create uninitailized buffers
             assert buf.cursor() is None
 
             # can call end access any time
@@ -118,8 +118,10 @@ class TestBuf(TestBase):
                         elapsed = max(time() - st, 0.001)  # prevent zero division errors on windows
                         mb = float(1000 * 1000)
                         mode_str = (access_mode and "slice") or "single byte"
-                        print("%s: Made %i random %s accesses to buffer created from %s reading a total of %f mb in %f s (%f mb/s)"
-                              % (man_id, max_num_accesses, mode_str, type(item), num_bytes / mb, elapsed, (num_bytes / mb) / elapsed),
+                        print("%s: Made %i random %s accesses to buffer created from %s "
+                              "reading a total of %f mb in %f s (%f mb/s)"
+                              % (man_id, max_num_accesses, mode_str, type(item),
+                                 num_bytes / mb, elapsed, (num_bytes / mb) / elapsed),
                               file=sys.stderr)
                     # END handle access mode
                     del buf

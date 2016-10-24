@@ -18,7 +18,7 @@ __all__ = ["align_to_mmap", "is_64_bit", "buffer",
 
 try:
     # Python 2
-    buffer = buffer
+    buffer = buffer  # @UndefinedVariable
 except NameError:
     # Python 3 has no `buffer`; only `memoryview`
     def buffer(obj, offset, size):
@@ -31,7 +31,7 @@ def string_types():
     if sys.version_info[0] >= 3:
         return str
     else:
-        return basestring
+        return basestring  # @UndefinedVariable
 
 
 def align_to_mmap(num, round_up):
@@ -110,9 +110,9 @@ class MapRegion(object):
     **Note:** deallocates used region automatically on destruction"""
     __slots__ = [
         '_b',   # beginning of mapping
+        '_size',  # cached size of our memory map
         '_mf',  # mapped memory chunk (as returned by mmap)
         '_uc',  # total amount of usages
-        '_size',  # cached size of our memory map
         '__weakref__'
     ]
     _need_compat_layer = sys.version_info[:2] < (2, 6)
