@@ -20,20 +20,23 @@ log = logging.getLogger(__name__)
 #}END utilities
 
 
-def managed_mmaps():
+def managed_mmaps(check_entered=True):
     """Makes a memory-map context-manager instance for the correct python-version.
 
-    :return: either :class:`SlidingWindowMapManager` or :class:`StaticWindowMapManager` (if PY2)
+    :param bool check_entered:
+        whether to scream if not used as context-manager (`with` block)
+    :return:
+        either :class:`SlidingWindowMapManager` or :class:`StaticWindowMapManager` (if PY2)
 
-    If you want to change the default parameters of these classes, use them directly.
+        If you want to change other default parameters of these classes, use them directly.
 
-    .. Tip::
-        Use it in a ``with ...:`` block, to free cached (and unused) resources.
+        .. Tip::
+            Use it in a ``with ...:`` block, to free cached (and unused) resources.
 
     """
     mman = SlidingWindowMapManager if PY3 else StaticWindowMapManager
 
-    return mman()
+    return mman(check_entered=check_entered)
 
 
 class WindowCursor(object):
@@ -135,9 +138,7 @@ class WindowCursor(object):
 
         **Note:**: The size actually mapped may be smaller than the given size. If that is the case,
         either the file has reached its end, or the map was created between two existing regions"""
-        if self._manager._entered <= 0:
-            raise ValueError('Context-manager %s not entered for %s!' %
-                             (self._manager, self))
+        self._manager._check_if_entered()
 
         need_region = True
         man = self._manager
@@ -289,6 +290,7 @@ class StaticWindowMapManager(object):
         '_memory_size',         # currently allocated memory size
         '_handle_count',        # amount of currently allocated file handles
         '_entered',             # updated on enter/exit, when 0, `close()`
+        'check_entered',        # bool, whether to scream if not used as context-manager (`with` block)
     ]
 
     #{ Configuration
@@ -300,7 +302,8 @@ class StaticWindowMapManager(object):
 
     _MB_in_bytes = 1024 * 1024
 
-    def __init__(self, window_size=0, max_memory_size=0, max_open_handles=sys.maxsize):
+    def __init__(self, window_size=0, max_memory_size=0, max_open_handles=sys.maxsize,
+                 check_entered=True):
         """initialize the manager with the given parameters.
         :param window_size: if -1, a default window size will be chosen depending on
             the operating system's architecture. It will internally be quantified to a multiple of the page size
@@ -310,7 +313,9 @@ class StaticWindowMapManager(object):
             It is a soft limit that is tried to be kept, but nothing bad happens if we have to over-allocate
         :param max_open_handles: if not maxint, limit the amount of open file handles to the given number.
             Otherwise the amount is only limited by the system itself. If a system or soft limit is hit,
-            the manager will free as many handles as possible"""
+            the manager will free as many handles as possible
+        :param bool check_entered: whether to scream if not used as context-manager (`with` block)
+        """
         self._fdict = dict()
         self._window_size = window_size
         self._max_memory_size = max_memory_size
@@ -318,6 +323,7 @@ class StaticWindowMapManager(object):
         self._memory_size = 0
         self._handle_count = 0
         self._entered = 0
+        self.check_entered = check_entered
 
         if window_size < 0:
             coeff = 64
@@ -435,6 +441,10 @@ class StaticWindowMapManager(object):
         assert r.includes_ofs(offset)
         return r
 
+    def _check_if_entered(self):
+        if self.check_entered and self._entered <= 0:
+            raise ValueError('Context-manager %s not entered!' % self)
+
     #}END internal methods
 
     #{ Interface
@@ -454,8 +464,7 @@ class StaticWindowMapManager(object):
 
         **Note:** Using file descriptors directly is faster once new windows are mapped as it
         prevents the file to be opened again just for the purpose of mapping it."""
-        if self._entered <= 0:
-            raise ValueError('Context-manager %s not entered!' % self)
+        self._check_if_entered()
 
         regions = self._fdict.get(path_or_fd)
         if regions:
@@ -545,9 +554,10 @@ class SlidingWindowMapManager(StaticWindowMapManager):
 
     __slots__ = ()
 
-    def __init__(self, window_size=-1, max_memory_size=0, max_open_handles=sys.maxsize):
+    def __init__(self, window_size=-1, max_memory_size=0, max_open_handles=sys.maxsize,
+                 check_entered=True):
         """Adjusts the default window size to -1"""
-        super(SlidingWindowMapManager, self).__init__(window_size, max_memory_size, max_open_handles)
+        super(SlidingWindowMapManager, self).__init__(window_size, max_memory_size, max_open_handles, check_entered)
 
     def _obtain_region(self, a, offset, size, flags, is_recursive):
         # bisect to find an existing region. The c++ implementation cannot
