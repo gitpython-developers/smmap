@@ -302,47 +302,47 @@ class StaticWindowMapManager(object):
 
     #{ Internal Methods
 
-    def _collect_lru_region(self, size):
-        """Unmap the region which was least-recently used and has no client
-        :param size: size of the region we want to map next (assuming its not already mapped partially or full
+    def _purge_lru_regions(self, size):
+        """Unmap least-recently-used regions that have no client
+
+        :param int size:
+            size of the region we want to map next (assuming its not already mapped partially or full
             if 0, we try to free any available region
-        :return: Amount of freed regions
+        :return:
+            Amount of freed regions
 
         .. Note::
             We don't raise exceptions anymore, in order to keep the system working, allowing temporary overallocation.
             If the system runs out of memory, it will tell.
 
         .. TODO::
-            implement a case where all unusued regions are discarded efficiently.
-            Currently its only brute force
+            Implement a case where all unusued regions are discarded efficiently.
+            Currently its only brute force.
         """
-        num_found = 0
-        while (size == 0) or (self._memory_size + size > self._max_memory_size):
-            lru_region = None
-            lru_list = None
-            for regions in self._fdict.values():
-                for region in regions:
-                    ## Check client count - if it's 1, it's just us.
-                    #
-                    if (region.client_count() == 1 and
-                            (lru_region is None or
-                             region.client_count() < lru_region.client_count())):
-                        lru_region = region
-                        lru_list = regions
-                    # END update lru_region
-                # END for each region
-            # END for each regions list
+        ## Collect all candidate (rlist, region) pairs, that is,
+        #  those with a single client, us.
+        #
+        region_pairs = [(rlist, r)
+                        for _, rlist in self._fdict.items()
+                        for r in rlist
+                        if r.client_count() <= 1]  # The `<` never matches.
 
-            if lru_region is None:
+        ## Purge the first candidates until enough memory freed.
+        #
+        mem_limit = (size and self._max_memory_size - size) or 0  # or kicks in when `size == 0`.
+        num_found = 0
+        for rlist, region in region_pairs:
+            assert self._memory_size >= 0, self._memory_size
+
+            if self._memory_size <= mem_limit:
                 break
-            # END handle region not found
 
             num_found += 1
-            del(lru_list[lru_list.index(lru_region)])
-            lru_region.increment_client_count(-1)
-            self._memory_size -= lru_region.size()
+            self._memory_size -= region.size()
+            rlist.remove(region)
+            region.increment_client_count(-1)
             self._handle_count -= 1
-        # END while there is more memory to free
+
         return num_found
 
     def _obtain_region(self, a, offset, size, flags, is_recursive):
@@ -351,7 +351,7 @@ class StaticWindowMapManager(object):
         :param a: A regions (a)rray
         :return: The newly created region"""
         if self._memory_size + size > self._max_memory_size:
-            self._collect_lru_region(size)
+            self._purge_lru_regions(size)
         # END handle collection
 
         r = None
@@ -371,7 +371,7 @@ class StaticWindowMapManager(object):
                     # a mapping. This is an exception, so we propagate it
                     raise
                 # END handle existing recursion
-                self._collect_lru_region(0)
+                self._purge_lru_regions(0)
                 return self._obtain_region(a, offset, size, flags, True)
             # END handle exceptions
 
@@ -412,7 +412,7 @@ class StaticWindowMapManager(object):
     def collect(self):
         """Collect all available free-to-collect mapped regions
         :return: Amount of freed handles"""
-        return self._collect_lru_region(0)
+        return self._purge_lru_regions(0)
 
     def num_file_handles(self):
         """:return: amount of file handles in use. Each mapped region uses one file handle"""
@@ -522,7 +522,7 @@ class SlidingWindowMapManager(StaticWindowMapManager):
             # memory available
             # Save calls !
             if self._memory_size + window_size > self._max_memory_size:
-                self._collect_lru_region(window_size)
+                self._purge_lru_regions(window_size)
             # END handle collection
 
             # we assume the list remains sorted by offset
@@ -581,7 +581,7 @@ class SlidingWindowMapManager(StaticWindowMapManager):
                     # a mapping. This is an exception, so we propagate it
                     raise
                 # END handle existing recursion
-                self._collect_lru_region(0)
+                self._purge_lru_regions(0)
                 return self._obtain_region(a, offset, size, flags, True)
             # END handle exceptions
 
