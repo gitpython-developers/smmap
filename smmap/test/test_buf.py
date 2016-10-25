@@ -28,49 +28,47 @@ class TestBuf(TestBase):
         # invalid paths fail upon construction
         with FileCreator(self.k_window_test_size, "buffer_test") as fc:
             with man_optimal:
-                c = man_optimal.make_cursor(fc.path)
-                self.assertRaises(ValueError, SlidingWindowMapBuffer, type(c)())   # invalid cursor
-                self.assertRaises(ValueError, SlidingWindowMapBuffer, c, fc.size)  # offset too large
+                with man_optimal.make_cursor(fc.path) as c:
+                    self.assertRaises(ValueError, SlidingWindowMapBuffer, type(c)())   # invalid cursor
+                    self.assertRaises(ValueError, SlidingWindowMapBuffer, c, fc.size)  # offset too large
 
-                buf = SlidingWindowMapBuffer()  # can create uninitailized buffers
-                assert buf.cursor() is None
+                    with SlidingWindowMapBuffer() as buf:  # can create uninitailized buffers
+                        assert buf.cursor() is None
 
-                # can call end access any time
-                buf.end_access()
-                buf.end_access()
-                assert len(buf) == 0
+                        # can call end access any time
+                        buf.end_access()
+                        buf.end_access()
+                        assert len(buf) == 0
 
-                # begin access can revive it, if the offset is suitable
-                offset = 100
-                assert buf.begin_access(c, fc.size) == False
-                assert buf.begin_access(c, offset) == True
-                assert len(buf) == fc.size - offset
-                assert buf.cursor().is_valid()
+                        # begin access can revive it, if the offset is suitable
+                        offset = 100
+                        assert buf.begin_access(c, fc.size) == False
+                        assert buf.begin_access(c, offset) == True
+                        assert len(buf) == fc.size - offset
+                        assert buf.cursor().is_valid()
 
-                # empty begin access keeps it valid on the same path, but alters the offset
-                assert buf.begin_access() == True
-                assert len(buf) == fc.size
-                assert buf.cursor().is_valid()
+                        # empty begin access keeps it valid on the same path, but alters the offset
+                        assert buf.begin_access() == True
+                        assert len(buf) == fc.size
+                        assert buf.cursor().is_valid()
 
-                # simple access
-                with open(fc.path, 'rb') as fp:
-                    data = fp.read()
-                assert data[offset] == buf[0]
-                assert data[offset:offset * 2] == buf[0:offset]
+                        # simple access
+                        with open(fc.path, 'rb') as fp:
+                            data = fp.read()
+                        assert data[offset] == buf[0]
+                        assert data[offset:offset * 2] == buf[0:offset]
 
-                # negative indices, partial slices
-                assert buf[-1] == buf[len(buf) - 1]
-                assert buf[-10:] == buf[len(buf) - 10:len(buf)]
+                        # negative indices, partial slices
+                        assert buf[-1] == buf[len(buf) - 1]
+                        assert buf[-10:] == buf[len(buf) - 10:len(buf)]
 
-                # end access makes its cursor invalid
-                buf.end_access()
-                assert not buf.cursor().is_valid()
-                assert buf.cursor().is_associated()         # but it remains associated
+                        # end access makes its cursor invalid
+                        buf.end_access()
+                        assert not buf.cursor().is_valid()
+                        assert buf.cursor().is_associated()         # but it remains associated
 
-                # an empty begin access fixes it up again
-                assert buf.begin_access() == True and buf.cursor().is_valid()
-                del(buf)        # ends access automatically
-                del(c)
+                        # an empty begin access fixes it up again
+                        assert buf.begin_access() == True and buf.cursor().is_valid()
 
                 assert man_optimal.num_file_handles() == 1
 
@@ -86,51 +84,49 @@ class TestBuf(TestBase):
 
             max_num_accesses = 100
             fd = os.open(fc.path, os.O_RDONLY)
-            for item in (fc.path, fd):
-                for manager, man_id in ((man_optimal, 'optimal'),
-                                        (man_worst_case, 'worst case'),
-                                        (static_man, 'static optimal')):
-                    with manager:
-                        buf = SlidingWindowMapBuffer(manager.make_cursor(item))
-                        assert manager.num_file_handles() == 1
-                        for access_mode in range(2):    # single, multi
-                            num_accesses_left = max_num_accesses
-                            num_bytes = 0
-                            fsize = fc.size
+            try:
+                for item in (fc.path, fd):
+                    for manager, man_id in ((man_optimal, 'optimal'),
+                                            (man_worst_case, 'worst case'),
+                                            (static_man, 'static optimal')):
+                        with manager:
+                            with SlidingWindowMapBuffer(manager.make_cursor(item)) as buf:
+                                assert manager.num_file_handles() == 1
+                                for access_mode in range(2):    # single, multi
+                                    num_accesses_left = max_num_accesses
+                                    num_bytes = 0
+                                    fsize = fc.size
 
-                            st = time()
-                            buf.begin_access()
-                            while num_accesses_left:
-                                num_accesses_left -= 1
-                                if access_mode:  # multi
-                                    ofs_start = randint(0, fsize)
-                                    ofs_end = randint(ofs_start, fsize)
-                                    d = buf[ofs_start:ofs_end]
-                                    assert len(d) == ofs_end - ofs_start
-                                    assert d == data[ofs_start:ofs_end]
-                                    num_bytes += len(d)
-                                    del d
-                                else:
-                                    pos = randint(0, fsize)
-                                    assert buf[pos] == data[pos]
-                                    num_bytes += 1
-                                # END handle mode
-                            # END handle num accesses
+                                    st = time()
+                                    buf.begin_access()
+                                    while num_accesses_left:
+                                        num_accesses_left -= 1
+                                        if access_mode:  # multi
+                                            ofs_start = randint(0, fsize)
+                                            ofs_end = randint(ofs_start, fsize)
+                                            d = buf[ofs_start:ofs_end]
+                                            assert len(d) == ofs_end - ofs_start
+                                            assert d == data[ofs_start:ofs_end]
+                                            num_bytes += len(d)
+                                            del d
+                                        else:
+                                            pos = randint(0, fsize)
+                                            assert buf[pos] == data[pos]
+                                            num_bytes += 1
+                                        # END handle mode
+                                    # END handle num accesses
 
-                            buf.end_access()
-                            assert manager.num_file_handles()
-                            assert manager.collect()
-                            assert manager.num_file_handles() == 0
-                            elapsed = max(time() - st, 0.001)  # prevent zero division errors on windows
-                            mb = float(1000 * 1000)
-                            mode_str = (access_mode and "slice") or "single byte"
-                            print("%s: Made %i random %s accesses to buffer created from %s "
-                                  "reading a total of %f mb in %f s (%f mb/s)"
-                                  % (man_id, max_num_accesses, mode_str, type(item),
-                                     num_bytes / mb, elapsed, (num_bytes / mb) / elapsed),
-                                  file=sys.stderr)
-                        # END handle access mode
-                        del buf
-                    # END for each manager
-            # END for each input
-            os.close(fd)
+                                    buf.end_access()
+                                    assert manager.num_file_handles()
+                                    assert manager.collect()
+                                    assert manager.num_file_handles() == 0
+                                    elapsed = max(time() - st, 0.001)  # prevent zero division errors on windows
+                                    mb = float(1000 * 1000)
+                                    mode_str = (access_mode and "slice") or "single byte"
+                                    print("%s: Made %i random %s accesses to buffer created from %s "
+                                          "reading a total of %f mb in %f s (%f mb/s)"
+                                          % (man_id, max_num_accesses, mode_str, type(item),
+                                             num_bytes / mb, elapsed, (num_bytes / mb) / elapsed),
+                                          file=sys.stderr)
+            finally:
+                os.close(fd)

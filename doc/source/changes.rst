@@ -5,15 +5,17 @@ Changelog
 2.1.0
 ======
 
-* **BREAKING API:** etrofit ``git.util.mman`` as context-manager, 
+- **BREAKING API:** retrofit ``git.util.mman`` as context-manager,
   to release memory-mapped regions held.
-  
-  The *mmap-manager(s)* are re-entrant, but not thread-safe **context-manager(s)**, 
-  to be used within a ``with ...:`` block, ensuring any left-overs cursors are cleaned up.  
-  If not entered, :meth:`StaticWindowMapManager.make_cursor()` and/or 
+
+  The *mmap-manager(s)* are re-entrant, but not thread-safe **context-manager(s)**,
+  to be used within a ``with ...:`` block, ensuring any left-overs cursors are cleaned up.
+  If not entered, :meth:`StaticWindowMapManager.make_cursor()` and/or
   :meth:`WindowCursor.use_region()` will scream.
 
   Get them from ``smmap.managed_mmaps()``.
+
+- Retrofit :class:`SlidingWindowMapBuffer` also as context-manager.
 
 v0.9.0
 ========
@@ -41,7 +43,7 @@ v0.8.1
 - A single bugfix
 
 
-v0.8.0 
+v0.8.0
 ========
 
 - Initial Release

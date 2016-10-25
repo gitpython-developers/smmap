@@ -66,17 +66,16 @@ class TestTutorial(TestBase):
                 # Buffers
                 #########
                 # Create a default buffer which can operate on the whole file
-                buf = smmap.SlidingWindowMapBuffer(mman.make_cursor(fc.path))
+                with smmap.SlidingWindowMapBuffer(mman.make_cursor(fc.path)) as buf:
+                    # you can use it right away
+                    assert buf.cursor().is_valid()
 
-                # you can use it right away
-                assert buf.cursor().is_valid()
+                    buf[0]  # access the first byte
+                    buf[-1]  # access the last ten bytes on the file
+                    buf[-10:]  # access the last ten bytes
 
-                buf[0]  # access the first byte
-                buf[-1]  # access the last ten bytes on the file
-                buf[-10:]  # access the last ten bytes
-
-                # If you want to keep the instance between different accesses, use the
-                # dedicated methods
-                buf.end_access()
-                assert not buf.cursor().is_valid()  # you cannot use the buffer anymore
-                assert buf.begin_access(offset=10)  # start using the buffer at an offset
+                    # If you want to keep the instance between different accesses, use the
+                    # dedicated methods
+                    buf.end_access()
+                    assert not buf.cursor().is_valid()  # you cannot use the buffer anymore
+                    assert buf.begin_access(offset=10)  # start using the buffer at an offset
