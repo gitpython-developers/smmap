@@ -319,9 +319,11 @@ class StaticWindowMapManager(object):
             lru_list = None
             for regions in self._fdict.values():
                 for region in regions:
-                    # check client count - if it's 1, it's just us
+                    ## Check client count - if it's 1, it's just us.
+                    #
                     if (region.client_count() == 1 and
-                            (lru_region is None or region._uc < lru_region._uc)):
+                            (lru_region is None or
+                             region.client_count() < lru_region.client_count())):
                         lru_region = region
                         lru_list = regions
                     # END update lru_region

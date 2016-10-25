@@ -166,7 +166,7 @@ class MapRegion(object):
                 self._mfb = buffer(self._mf, ofs, self._size)
             # END handle buffer wrapping
         finally:
-            if isinstance(path_or_fd, string_types()):
+            if not isinstance(path_or_fd, int):
                 os.close(fd)
             # END only close it if we opened it
         # END close file handle
