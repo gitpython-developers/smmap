@@ -24,13 +24,13 @@ class TestMMan(TestBase):
                 ci = WindowCursor(man)  # invalid cursor
                 assert not ci.is_valid()
                 assert not ci.is_associated()
-                assert ci.size() == 0       # this is cached, so we can query it in invalid state
+                self.assertEqual(ci.size(), 0)       # this is cached, so we can query it in invalid state
 
                 cv = man.make_cursor(fc.path)
                 assert not cv.is_valid()    # no region mapped yet
                 assert cv.is_associated()  # but it know where to map it from
-                assert cv.file_size() == fc.size
-                assert cv.path() == fc.path
+                self.assertEqual(cv.file_size(), fc.size)
+                self.assertEqual(cv.path(), fc.path)
 
             # copy module
             cio = copy(cv)
@@ -55,14 +55,14 @@ class TestMMan(TestBase):
 
         for man in (static_man, slide_man):
             with man:
-                assert man.num_file_handles() == 0
-                assert man.num_open_files() == 0
+                self.assertEqual(man.num_file_handles(), 0)
+                self.assertEqual(man.num_open_files(), 0)
                 winsize_cmp_val = 0
                 if isinstance(man, StaticWindowMapManager):
                     winsize_cmp_val = -1
                 # END handle window size
                 assert man.window_size() > winsize_cmp_val
-                assert man.mapped_memory_size() == 0
+                self.assertEqual(man.mapped_memory_size(), 0)
                 assert man.max_mapped_memory_size() > 0
 
                 # collection doesn't raise in 'any' mode
@@ -71,7 +71,7 @@ class TestMMan(TestBase):
                 man._collect_lru_region(10)
 
                 # doesn't fail if we over-allocate
-                assert man._collect_lru_region(sys.maxsize) == 0
+                self.assertEqual(man._collect_lru_region(sys.maxsize), 0)
 
                 # use a region, verify most basic functionality
                 with FileCreator(self.k_window_test_size, "manager_test") as fc:
@@ -81,10 +81,10 @@ class TestMMan(TestBase):
                             c = man.make_cursor(item)
                             assert c.path_or_fd() is item
                             assert c.use_region(10, 10).is_valid()
-                            assert c.ofs_begin() == 10
-                            assert c.size() == 10
+                            self.assertEqual(c.ofs_begin(), 10)
+                            self.assertEqual(c.size(), 10)
                             with open(fc.path, 'rb') as fp:
-                                assert c.buffer()[:] == fp.read(20)[10:]
+                                self.assertEqual(c.buffer()[:], fp.read(20)[10:])
 
                         if isinstance(item, int):
                             self.assertRaises(ValueError, c.path)
@@ -108,65 +108,65 @@ class TestMMan(TestBase):
                 for mtype, args in ((StaticWindowMapManager, (0, fc.size // 3, max_num_handles)),
                                     (SlidingWindowMapManager, (fc.size // 100, fc.size // 3, max_num_handles)),):
                     for item in (fc.path, fd):
-                        assert len(data) == fc.size
+                        self.assertEqual(len(data), fc.size)
 
                         # small windows, a reasonable max memory. Not too many regions at once
                         with mtype(window_size=args[0], max_memory_size=args[1], max_open_handles=args[2]) as man:
                             c = man.make_cursor(item)
 
                             # still empty (more about that is tested in test_memory_manager()
-                            assert man.num_open_files() == 0
-                            assert man.mapped_memory_size() == 0
+                            self.assertEqual(man.num_open_files(), 0)
+                            self.assertEqual(man.mapped_memory_size(), 0)
 
                             base_offset = 5000
                             # window size is 0 for static managers, hence size will be 0. We take that into consideration
                             size = man.window_size() // 2
                             assert c.use_region(base_offset, size).is_valid()
                             rr = c.region()
-                            assert rr.client_count() == 2  # the manager and the cursor and us
+                            self.assertEqual(rr.client_count(), 2)  # the manager and the cursor and us
 
-                            assert man.num_open_files() == 1
-                            assert man.num_file_handles() == 1
-                            assert man.mapped_memory_size() == rr.size()
+                            self.assertEqual(man.num_open_files(), 1)
+                            self.assertEqual(man.num_file_handles(), 1)
+                            self.assertEqual(man.mapped_memory_size(), rr.size())
 
-                            # assert c.size() == size        # the cursor may overallocate in its static version
-                            assert c.ofs_begin() == base_offset
-                            assert rr.ofs_begin() == 0        # it was aligned and expanded
+                            # self.assertEqual(c.size(), size        # the cursor may overallocate in its static version)
+                            self.assertEqual(c.ofs_begin(), base_offset)
+                            self.assertEqual(rr.ofs_begin(), 0)        # it was aligned and expanded
                             if man.window_size():
                                 # but isn't larger than the max window (aligned)
-                                assert rr.size() == align_to_mmap(man.window_size(), True)
+                                self.assertEqual(rr.size(), align_to_mmap(man.window_size(), True))
                             else:
-                                assert rr.size() == fc.size
+                                self.assertEqual(rr.size(), fc.size)
                             # END ignore static managers which dont use windows and are aligned to file boundaries
 
-                            assert c.buffer()[:] == data[base_offset:base_offset + (size or c.size())]
+                            self.assertEqual(c.buffer()[:], data[base_offset:base_offset + (size or c.size())])
 
                             # obtain second window, which spans the first part of the file - it is a still the same window
                             nsize = (size or fc.size) - 10
                             assert c.use_region(0, nsize).is_valid()
-                            assert c.region() == rr
-                            assert man.num_file_handles() == 1
-                            assert c.size() == nsize
-                            assert c.ofs_begin() == 0
-                            assert c.buffer()[:] == data[:nsize]
+                            self.assertEqual(c.region(), rr)
+                            self.assertEqual(man.num_file_handles(), 1)
+                            self.assertEqual(c.size(), nsize)
+                            self.assertEqual(c.ofs_begin(), 0)
+                            self.assertEqual(c.buffer()[:], data[:nsize])
 
                             # map some part at the end, our requested size cannot be kept
                             overshoot = 4000
                             base_offset = fc.size - (size or c.size()) + overshoot
                             assert c.use_region(base_offset, size).is_valid()
                             if man.window_size():
-                                assert man.num_file_handles() == 2
+                                self.assertEqual(man.num_file_handles(), 2)
                                 assert c.size() < size
                                 assert c.region() is not rr  # old region is still available, but has not curser ref anymore
-                                assert rr.client_count() == 1  # only held by manager
+                                self.assertEqual(rr.client_count(), 1)  # only held by manager
                             else:
                                 assert c.size() < fc.size
                             # END ignore static managers which only have one handle per file
                             rr = c.region()
-                            assert rr.client_count() == 2  # manager + cursor
+                            self.assertEqual(rr.client_count(), 2)  # manager + cursor
                             assert rr.ofs_begin() < c.ofs_begin()  # it should have extended itself to the left
                             assert rr.ofs_end() <= fc.size  # it cannot be larger than the file
-                            assert c.buffer()[:] == data[base_offset:base_offset + (size or c.size())]
+                            self.assertEqual(c.buffer()[:], data[base_offset:base_offset + (size or c.size())])
 
                             # unising a region makes the cursor invalid
                             c.unuse_region()
@@ -174,7 +174,7 @@ class TestMMan(TestBase):
                             if man.window_size():
                                 # but doesn't change anything regarding the handle count - we cache it and only
                                 # remove mapped regions if we have to
-                                assert man.num_file_handles() == 2
+                                self.assertEqual(man.num_file_handles(), 2)
                             # END ignore this for static managers
 
                             # iterate through the windows, verify data contents
@@ -201,7 +201,7 @@ class TestMMan(TestBase):
                                 assert max_file_handles >= num_file_handles()
                                 assert c.use_region(base_offset, (size or c.size())).is_valid()
                                 csize = c.size()
-                                assert c.buffer()[:] == data[base_offset:base_offset + csize]
+                                self.assertEqual(c.buffer()[:], data[base_offset:base_offset + csize])
                                 memory_read += csize
 
                                 assert includes_ofs(base_offset)
@@ -222,7 +222,7 @@ class TestMMan(TestBase):
                             # collection - it should be able to collect all
                             assert man.num_file_handles()
                             assert man.collect()
-                            assert man.num_file_handles() == 0
+                            self.assertEqual(man.num_file_handles(), 0)
                         # END for each item
                     # END for each manager type
             finally:

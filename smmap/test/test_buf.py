@@ -38,29 +38,29 @@ class TestBuf(TestBase):
                         # can call end access any time
                         buf.end_access()
                         buf.end_access()
-                        assert len(buf) == 0
+                        self.assertEqual(len(buf), 0)
 
                         # begin access can revive it, if the offset is suitable
                         offset = 100
-                        assert buf.begin_access(c, fc.size) == False
-                        assert buf.begin_access(c, offset) == True
-                        assert len(buf) == fc.size - offset
+                        self.assertEqual(buf.begin_access(c, fc.size), False)
+                        self.assertEqual(buf.begin_access(c, offset), True)
+                        self.assertEqual(len(buf), fc.size - offset)
                         assert buf.cursor().is_valid()
 
                         # empty begin access keeps it valid on the same path, but alters the offset
-                        assert buf.begin_access() == True
-                        assert len(buf) == fc.size
+                        self.assertEqual(buf.begin_access(), True)
+                        self.assertEqual(len(buf), fc.size)
                         assert buf.cursor().is_valid()
 
                         # simple access
                         with open(fc.path, 'rb') as fp:
                             data = fp.read()
-                        assert data[offset] == buf[0]
-                        assert data[offset:offset * 2] == buf[0:offset]
+                        self.assertEqual(data[offset], buf[0])
+                        self.assertEqual(data[offset:offset * 2], buf[0:offset])
 
                         # negative indices, partial slices
-                        assert buf[-1] == buf[len(buf) - 1]
-                        assert buf[-10:] == buf[len(buf) - 10:len(buf)]
+                        self.assertEqual(buf[-1], buf[len(buf) - 1])
+                        self.assertEqual(buf[-10:], buf[len(buf) - 10:len(buf)])
 
                         # end access makes its cursor invalid
                         buf.end_access()
@@ -68,9 +68,9 @@ class TestBuf(TestBase):
                         assert buf.cursor().is_associated()         # but it remains associated
 
                         # an empty begin access fixes it up again
-                        assert buf.begin_access() == True and buf.cursor().is_valid()
+                        self.assertEqual(buf.begin_access(), True and buf.cursor().is_valid())
 
-                assert man_optimal.num_file_handles() == 1
+                self.assertEqual(man_optimal.num_file_handles(), 1)
 
     def test_performance(self):
         # PERFORMANCE
@@ -91,7 +91,7 @@ class TestBuf(TestBase):
                                             (static_man, 'static optimal')):
                         with manager:
                             with SlidingWindowMapBuffer(manager.make_cursor(item)) as buf:
-                                assert manager.num_file_handles() == 1
+                                self.assertEqual(manager.num_file_handles(), 1)
                                 for access_mode in range(2):    # single, multi
                                     num_accesses_left = max_num_accesses
                                     num_bytes = 0
@@ -105,13 +105,13 @@ class TestBuf(TestBase):
                                             ofs_start = randint(0, fsize)
                                             ofs_end = randint(ofs_start, fsize)
                                             d = buf[ofs_start:ofs_end]
-                                            assert len(d) == ofs_end - ofs_start
-                                            assert d == data[ofs_start:ofs_end]
+                                            self.assertEqual(len(d), ofs_end - ofs_start)
+                                            self.assertEqual(d, data[ofs_start:ofs_end])
                                             num_bytes += len(d)
                                             del d
                                         else:
                                             pos = randint(0, fsize)
-                                            assert buf[pos] == data[pos]
+                                            self.assertEqual(buf[pos], data[pos])
                                             num_bytes += 1
                                         # END handle mode
                                     # END handle num accesses
@@ -119,7 +119,7 @@ class TestBuf(TestBase):
                                     buf.end_access()
                                     assert manager.num_file_handles()
                                     assert manager.collect()
-                                    assert manager.num_file_handles() == 0
+                                    self.assertEqual(manager.num_file_handles(), 0)
                                     elapsed = max(time() - st, 0.001)  # prevent zero division errors on windows
                                     mb = float(1000 * 1000)
                                     mode_str = (access_mode and "slice") or "single byte"
