@@ -1,5 +1,10 @@
 """Module containing a memory memory manager which provides a sliding window on a number of memory mapped files"""
+from functools import reduce
+import logging
+import sys
+
 from .util import (
+    PY3,
     MapWindow,
     MapRegion,
     MapRegionList,
@@ -8,13 +13,27 @@ from .util import (
     buffer,
 )
 
-import sys
-from functools import reduce
 
-__all__ = ["StaticWindowMapManager", "SlidingWindowMapManager", "WindowCursor"]
+__all__ = ['managed_mmaps', "StaticWindowMapManager", "SlidingWindowMapManager", "WindowCursor"]
 #{ Utilities
-
+log = logging.getLogger(__name__)
 #}END utilities
+
+
+def managed_mmaps():
+    """Makes a memory-map context-manager instance for the correct python-version.
+
+    :return: either :class:`SlidingWindowMapManager` or :class:`StaticWindowMapManager` (if PY2)
+
+    If you want to change the default parameters of these classes, use them directly.
+
+    .. Tip::
+        Use it in a ``with ...:`` block, to free cached (and unused) resources.
+
+    """
+    mman = SlidingWindowMapManager if PY3 else StaticWindowMapManager
+
+    return mman()
 
 
 class WindowCursor(object):
@@ -25,9 +44,15 @@ class WindowCursor(object):
 
     Cursors should not be created manually, but are instead returned by the SlidingWindowMapManager
 
-    **Note:**: The current implementation is suited for static and sliding window managers, but it also means
-    that it must be suited for the somewhat quite different sliding manager. It could be improved, but
-    I see no real need to do so."""
+    .. Tip::
+        This is a re-entrant, but not thread-safe context-manager, to be used within a ``with ...:`` block,
+        to ensure any left-overs cursors are cleaned up.  If not entered, :meth:`use_region()``
+        will scream.
+
+    .. Note::
+        The current implementation is suited for static and sliding window managers,
+        but it also means that it must be suited for the somewhat quite different sliding manager.
+        It could be improved, but I see no real need to do so."""
     __slots__ = (
         '_manager',  # the manger keeping all file regions
         '_rlist',   # a regions list with regions for our file
@@ -110,6 +135,10 @@ class WindowCursor(object):
 
         **Note:**: The size actually mapped may be smaller than the given size. If that is the case,
         either the file has reached its end, or the map was created between two existing regions"""
+        if self._manager._entered <= 0:
+            raise ValueError('Context-manager %s not entered for %s!' %
+                             (self._manager, self))
+
         need_region = True
         man = self._manager
         fsize = self._rlist.file_size()
@@ -243,15 +272,23 @@ class StaticWindowMapManager(object):
     These clients would have to use a SlidingWindowMapBuffer to hide this fact.
 
     This type will always use a maximum window size, and optimize certain methods to
-    accommodate this fact"""
+    accommodate this fact
+
+    .. Tip::
+        The *memory-managers* are re-entrant, but not thread-safe context-manager(s),
+        to be used within a ``with ...:`` block, ensuring any left-overs cursors are cleaned up.
+        If not entered, :meth:`make_cursor()` and/or :meth:`WindowCursor.use_region()` will scream.
+
+    """
 
     __slots__ = [
-        '_fdict',           # mapping of path -> StorageHelper (of some kind
-        '_window_size',     # maximum size of a window
-        '_max_memory_size',  # maximum amount of memory we may allocate
-        '_max_handle_count',        # maximum amount of handles to keep open
-        '_memory_size',     # currently allocated memory size
+        '_fdict',               # mapping of path -> StorageHelper (of some kind
+        '_window_size',         # maximum size of a window
+        '_max_memory_size',     # maximum amount of memory we may allocate
+        '_max_handle_count',    # maximum amount of handles to keep open
+        '_memory_size',         # currently allocated memory size
         '_handle_count',        # amount of currently allocated file handles
+        '_entered',             # updated on enter/exit, when 0, `close()`
     ]
 
     #{ Configuration
@@ -280,6 +317,7 @@ class StaticWindowMapManager(object):
         self._max_handle_count = max_open_handles
         self._memory_size = 0
         self._handle_count = 0
+        self._entered = 0
 
         if window_size < 0:
             coeff = 64
@@ -296,6 +334,23 @@ class StaticWindowMapManager(object):
             # END handle arch
             self._max_memory_size = coeff * self._MB_in_bytes
         # END handle max memory size
+
+    def __enter__(self):
+        assert self._entered >= 0, self._entered
+        self._entered += 1
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        assert self._entered > 0, self._entered
+        self._entered -= 1
+        if self._entered == 0:
+            leaft_overs = self.collect()
+            if leaft_overs:
+                log.warning("Cleaned up %s left-over mmap-regions.")
+
+    def close(self):
+        self.collect()
 
     #{ Internal Methods
 
@@ -399,6 +454,9 @@ class StaticWindowMapManager(object):
 
         **Note:** Using file descriptors directly is faster once new windows are mapped as it
         prevents the file to be opened again just for the purpose of mapping it."""
+        if self._entered <= 0:
+            raise ValueError('Context-manager %s not entered!' % self)
+
         regions = self._fdict.get(path_or_fd)
         if regions:
             assert not regions.collect_closed_regions(), regions.collect_closed_regions()

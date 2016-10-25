@@ -28,8 +28,11 @@ except NameError:
         # return obj[offset:offset + size]
 
 
+PY3 = sys.version_info[0] >= 3
+
+
 def string_types():
-    if sys.version_info[0] >= 3:
+    if PY3:
         return str
     else:
         return basestring  # @UndefinedVariable
