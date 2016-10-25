@@ -357,7 +357,7 @@ class StaticWindowMapManager(object):
             gc.collect()
             leaft_overs = self.collect()
             if leaft_overs:
-                log.warning("Cleaned up %s left-over mmap-regions.")
+                log.debug("Cleaned up %s left-over mmap-regions." % leaft_overs)
 
     def close(self):
         self.collect()

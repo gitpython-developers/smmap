@@ -144,8 +144,6 @@ class MapRegion(object):
             fd = path_or_fd
         else:
             fd = os.open(path_or_fd, os.O_RDONLY | getattr(os, 'O_BINARY', 0) | flags)
-        # END handle fd
-
         try:
             kwargs = dict(access=ACCESS_READ, offset=ofs)
             corrected_size = size
