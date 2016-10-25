@@ -21,25 +21,6 @@ log = logging.getLogger(__name__)
 #}END utilities
 
 
-def managed_mmaps(check_entered=True):
-    """Makes a memory-map context-manager instance for the correct python-version.
-
-    :param bool check_entered:
-        whether to scream if not used as context-manager (`with` block)
-    :return:
-        either :class:`SlidingWindowMapManager` or :class:`StaticWindowMapManager` (if PY2)
-
-        If you want to change other default parameters of these classes, use them directly.
-
-        .. Tip::
-            Use it in a ``with ...:`` block, to free cached (and unused) resources.
-
-    """
-    mman = SlidingWindowMapManager if PY3 else StaticWindowMapManager
-
-    return mman(check_entered=check_entered)
-
-
 class WindowCursor(object):
 
     """
@@ -261,6 +242,25 @@ class WindowCursor(object):
         return self._rlist.path_or_fd()
 
     #} END interface
+
+
+def managed_mmaps(check_entered=True):
+    """Makes a memory-map context-manager instance for the correct python-version.
+
+    :param bool check_entered:
+        whether to scream if not used as context-manager (`with` block)
+    :return:
+        either :class:`SlidingWindowMapManager` or :class:`StaticWindowMapManager` (if PY2)
+
+        If you want to change other default parameters of these classes, use them directly.
+
+        .. Tip::
+            Use it in a ``with ...:`` block, to free cached (and unused) resources.
+
+    """
+    mman = SlidingWindowMapManager if PY3 else StaticWindowMapManager
+
+    return mman(check_entered=check_entered)
 
 
 class StaticWindowMapManager(object):
