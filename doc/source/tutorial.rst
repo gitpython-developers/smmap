@@ -8,13 +8,14 @@ This text briefly introduces you to the basic design decisions and accompanying 
 Design
 ======
 Per application, there must be a *MemoryManager* to be used throughout the application.
-It can be configured to keep your resources within certain limits.
+It can be configured to keep your resources within certain limits (see :func:`smmap.managed_mmaps()`).
 
-To access mapped regions, you require a cursor. Cursors point to exactly one file and serve as handles into it.
+To access mapped regions, you require a cursor. Cursors point to exactly one file
+and serve as handles into it.
 As long as it exists, the respective memory region will remain available.
 
-For convenience, a buffer implementation is provided which handles cursors and resource allocation
-behind its simple buffer like interface.
+For convenience, a buffer implementation is provided (:class:`smmap.SlidingWindowMapBuffer`)
+which handles cursors and resource allocation behind its simple buffer like interface.
 
 
 Memory Managers
@@ -56,50 +57,48 @@ Cursors
 ========
 *Cursors* are handles that point onto a window, i.e. a region of a file mapped into memory. From them you may obtain a buffer through which the data of that window can actually be accessed::
 
-    import smmap.test.lib
+    import smmap.test.lib as tlib
 
-    with smmap.managed_mmaps() as mman:
-        fc = smmap.test.lib.FileCreator(1024*1024*8, "test_file")
-
+    with smmap.managed_mmaps() as mman, tlib.FileCreator(1024*1024*8, "test_file") as fc:
         # obtain a cursor to access some file.
-        c = mman.make_cursor(fc.path)
+        with mman.make_cursor(fc.path) as c:
 
-        # the cursor is now associated with the file, but not yet usable
-        assert c.is_associated()
-        assert not c.is_valid()
+            # the cursor is now associated with the file, but not yet usable
+            assert c.is_associated()
+            assert not c.is_valid()
 
-        # before you can use the cursor, you have to specify a window you want to
-        # access. The following just says you want as much data as possible starting
-        # from offset 0.
-        # To be sure your region could be mapped, query for validity
-        assert c.use_region().is_valid()		# use_region returns self
+            # before you can use the cursor, you have to specify a window you want to
+            # access. The following just says you want as much data as possible starting
+            # from offset 0.
+            # To be sure your region could be mapped, query for validity
+            assert c.use_region().is_valid()		# use_region returns self
 
-        # once a region was mapped, you must query its dimension regularly
-        # to assure you don't try to access its buffer out of its bounds
-        assert c.size()
-        c.buffer()[0]			# first byte
-        c.buffer()[1:10]			# first 9 bytes
-        c.buffer()[c.size()-1] 	# last byte
+            # once a region was mapped, you must query its dimension regularly
+            # to assure you don't try to access its buffer out of its bounds
+            assert c.size()
+            c.buffer()[0]			# first byte
+            c.buffer()[1:10]		# first 9 bytes
+            c.buffer()[c.size()-1] 	# last byte
 
-        # its recommended not to create big slices when feeding the buffer
-        # into consumers (e.g. struct or zlib).
-        # Instead, either give the buffer directly, or use pythons buffer command.
-        buffer(c.buffer(), 1, 9)	# first 9 bytes without copying them
+            # its recommended not to create big slices when feeding the buffer
+            # into consumers (e.g. struct or zlib).
+            # Instead, either give the buffer directly, or use pythons buffer command.
+            buffer(c.buffer(), 1, 9)	# first 9 bytes without copying them
 
-        # you can query absolute offsets, and check whether an offset is included
-        # in the cursor's data.
-        assert c.ofs_begin() < c.ofs_end()
-        assert c.includes_ofs(100)
+            # you can query absolute offsets, and check whether an offset is included
+            # in the cursor's data.
+            assert c.ofs_begin() < c.ofs_end()
+            assert c.includes_ofs(100)
 
-        # If you are over out of bounds with one of your region requests, the
-        # cursor will be come invalid. It cannot be used in that state
-        assert not c.use_region(fc.size, 100).is_valid()
-        # map as much as possible after skipping the first 100 bytes
-        assert c.use_region(100).is_valid()
+            # If you are over out of bounds with one of your region requests, the
+            # cursor will be come invalid. It cannot be used in that state
+            assert not c.use_region(fc.size, 100).is_valid()
+            # map as much as possible after skipping the first 100 bytes
+            assert c.use_region(100).is_valid()
 
-        # You must explicitly free cursor resources by unusing the cursor's region
-        c.unuse_region()
-        assert not c.is_valid()
+            # You must explicitly free cursor resources by unusing the cursor's region
+            c.unuse_region()
+            assert not c.is_valid()
 
 
 Now you would have to write your algorithms around this interface to properly slide through huge amounts of data.
@@ -116,9 +115,9 @@ which uses a cursor underneath.
 With it, you can access all data in a possibly huge file
 without having to take care of setting the cursor to different regions yourself::
 
-    # Create a default buffer which can operate on the whole file
-    with smmap.SlidingWindowMapBuffer(mman.make_cursor(fc.path)) as buf:
-
+    ## Create a default buffer which can operate on the whole file
+    cur = mman.make_cursor(fc.path)
+    with smmap.SlidingWindowMapBuffer(cur) as buf:
         # you can use it right away
         assert buf.cursor().is_valid()
 
@@ -126,11 +125,13 @@ without having to take care of setting the cursor to different regions yourself:
         buf[-1]	# access the last ten bytes on the file
         buf[-10:]# access the last ten bytes
 
-        # If you want to keep the instance between different accesses, use the
-        # dedicated methods
-        buf.end_access()
-        assert not buf.cursor().is_valid()	# you cannot use the buffer anymore
-        assert buf.begin_access(offset=10)	# start using the buffer at an offset
+    ## You cannot use the buffer anymore.
+    assert not buf.cursor().is_valid()
+
+    ## If you want to keep the instance between different accesses,
+    # use another instance.
+    with smmap.SlidingWindowMapBuffer(cur, offset=10) as buf:
+        assert buf.cursor().is_valid()
 
 
 Disadvantages

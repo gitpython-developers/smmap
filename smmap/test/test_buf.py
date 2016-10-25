@@ -32,25 +32,21 @@ class TestBuf(TestBase):
                     self.assertRaises(ValueError, SlidingWindowMapBuffer, type(c)())   # invalid cursor
                     self.assertRaises(ValueError, SlidingWindowMapBuffer, c, fc.size)  # offset too large
 
-                    with SlidingWindowMapBuffer() as buf:  # can create uninitailized buffers
-                        assert buf.cursor() is None
-
-                        # can call end access any time
-                        buf.end_access()
-                        buf.end_access()
-                        self.assertEqual(len(buf), 0)
-
-                        # begin access can revive it, if the offset is suitable
-                        offset = 100
-                        self.assertEqual(buf.begin_access(c, fc.size), False)
-                        self.assertEqual(buf.begin_access(c, offset), True)
+                    offset = 100
+                    with SlidingWindowMapBuffer(c, offset) as buf:
+                        assert buf.cursor()
+                        assert buf.cursor().is_valid()
                         self.assertEqual(len(buf), fc.size - offset)
-                        assert buf.cursor().is_valid()
 
-                        # empty begin access keeps it valid on the same path, but alters the offset
-                        self.assertEqual(buf.begin_access(), True)
-                        self.assertEqual(len(buf), fc.size)
+                    with SlidingWindowMapBuffer(c, fc.size - offset) as buf:
+                        assert buf.cursor()
                         assert buf.cursor().is_valid()
+                        self.assertEqual(len(buf), offset)
+
+                    with SlidingWindowMapBuffer(c) as buf:
+                        assert buf.cursor()
+                        assert buf.cursor().is_valid()
+                        self.assertEqual(len(buf), fc.size)
 
                         # simple access
                         with open(fc.path, 'rb') as fp:
@@ -61,14 +57,10 @@ class TestBuf(TestBase):
                         # negative indices, partial slices
                         self.assertEqual(buf[-1], buf[len(buf) - 1])
                         self.assertEqual(buf[-10:], buf[len(buf) - 10:len(buf)])
-
-                        # end access makes its cursor invalid
-                        buf.end_access()
-                        assert not buf.cursor().is_valid()
-                        assert buf.cursor().is_associated()         # but it remains associated
-
-                        # an empty begin access fixes it up again
-                        self.assertEqual(buf.begin_access(), True and buf.cursor().is_valid())
+                    # end access makes its cursor invalid
+                    assert not buf.cursor()
+                    assert not c.is_valid()
+                    assert c.is_associated()         # but it remains associated
 
                 self.assertEqual(man_optimal.num_file_handles(), 1)
 
@@ -90,15 +82,14 @@ class TestBuf(TestBase):
                                             (man_worst_case, 'worst case'),
                                             (static_man, 'static optimal')):
                         with manager:
-                            with SlidingWindowMapBuffer(manager.make_cursor(item)) as buf:
-                                self.assertEqual(manager.num_file_handles(), 1)
-                                for access_mode in range(2):    # single, multi
+                            for access_mode in range(2):    # single, multi
+                                with SlidingWindowMapBuffer(manager.make_cursor(item)) as buf:
+                                    self.assertEqual(manager.num_file_handles(), 1)
                                     num_accesses_left = max_num_accesses
                                     num_bytes = 0
                                     fsize = fc.size
 
                                     st = time()
-                                    buf.begin_access()
                                     while num_accesses_left:
                                         num_accesses_left -= 1
                                         if access_mode:  # multi
@@ -115,18 +106,16 @@ class TestBuf(TestBase):
                                             num_bytes += 1
                                         # END handle mode
                                     # END handle num accesses
-
-                                    buf.end_access()
-                                    assert manager.num_file_handles()
-                                    assert manager.collect()
-                                    self.assertEqual(manager.num_file_handles(), 0)
-                                    elapsed = max(time() - st, 0.001)  # prevent zero division errors on windows
-                                    mb = float(1000 * 1000)
-                                    mode_str = (access_mode and "slice") or "single byte"
-                                    print("%s: Made %i random %s accesses to buffer created from %s "
-                                          "reading a total of %f mb in %f s (%f mb/s)"
-                                          % (man_id, max_num_accesses, mode_str, type(item),
-                                             num_bytes / mb, elapsed, (num_bytes / mb) / elapsed),
-                                          file=sys.stderr)
+                                assert manager.num_file_handles()
+                                assert manager.collect()
+                                self.assertEqual(manager.num_file_handles(), 0)
+                                elapsed = max(time() - st, 0.001)  # prevent zero division errors on windows
+                                mb = float(1000 * 1000)
+                                mode_str = (access_mode and "slice") or "single byte"
+                                print("%s: Made %i random %s accesses to buffer created from %s "
+                                      "reading a total of %f mb in %f s (%f mb/s)"
+                                      % (man_id, max_num_accesses, mode_str, type(item),
+                                         num_bytes / mb, elapsed, (num_bytes / mb) / elapsed),
+                                      file=sys.stderr)
             finally:
                 os.close(fd)

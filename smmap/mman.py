@@ -359,6 +359,11 @@ class StaticWindowMapManager(object):
             if leaft_overs:
                 log.debug("Cleaned up %s left-over mmap-regions." % leaft_overs)
 
+    def __del__(self):
+        if self._entered != 0:
+            log.warning("Missed %s exit(s) on %s!" % (self._entered, self))
+            self.close()
+
     def close(self):
         self.collect()
 

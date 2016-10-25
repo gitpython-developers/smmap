@@ -15,7 +15,9 @@ Changelog
 
   Get them from ``smmap.managed_mmaps()``.
 
-- Retrofit :class:`SlidingWindowMapBuffer` also as context-manager.
+- Simplify :class:`SlidingWindowMapBuffer` as create/close context-manager
+  (no ``begin_access()``, or ``end_access()``).
+
 
 v0.9.0
 ========

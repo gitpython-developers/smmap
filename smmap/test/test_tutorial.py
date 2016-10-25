@@ -74,8 +74,5 @@ class TestTutorial(TestBase):
                     buf[-1]  # access the last ten bytes on the file
                     buf[-10:]  # access the last ten bytes
 
-                    # If you want to keep the instance between different accesses, use the
-                    # dedicated methods
-                    buf.end_access()
-                    assert not buf.cursor().is_valid()  # you cannot use the buffer anymore
-                    assert buf.begin_access(offset=10)  # start using the buffer at an offset
+                assert not buf.cursor()
+                assert not c.is_valid()  # you cannot use the buffer anymore
