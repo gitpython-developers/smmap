@@ -12,6 +12,7 @@ from .util import (
     string_types,
     buffer,
 )
+import gc
 
 
 __all__ = ['managed_mmaps', "StaticWindowMapManager", "SlidingWindowMapManager", "WindowCursor"]
@@ -351,6 +352,9 @@ class StaticWindowMapManager(object):
         assert self._entered > 0, self._entered
         self._entered -= 1
         if self._entered == 0:
+            # Try to close all file-handles
+            #(a *Windows* only issue, and probably not fixed)
+            gc.collect()
             leaft_overs = self.collect()
             if leaft_overs:
                 log.warning("Cleaned up %s left-over mmap-regions.")
