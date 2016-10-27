@@ -15,6 +15,8 @@ Changelog
 
   Get them from ``smmap.managed_mmaps()``.
 
+- FIX ``memoryview`` leak in Windows; now all *gitdb* TCs now pass without explicit release!
+
 - Simplify :class:`SlidingWindowMapBuffer` as create/close context-manager
   (no ``begin_access()``, or ``end_access()``).
 
