@@ -22,10 +22,9 @@ try:
 except NameError:
     # Python 3 has no `buffer`; only `memoryview`
     def buffer(obj, offset, size):
-        # Actually, for gitpython this is fastest ... .
-        return memoryview(obj)[offset:offset+size]
-        # doing it directly is much faster !
-        # return obj[offset:offset + size]
+        # Actually, for gitpython this is fastest ... but `memoryviews` LEAK!
+        #return memoryview(obj)[offset:offset + size]
+        return obj[offset:offset + size]
 
 
 def string_types():
