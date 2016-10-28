@@ -286,7 +286,7 @@ class StaticWindowMapManager(object):
 
         if window_size < 0:
             coeff = 64
-            if is_64_bit():
+            if is_64_bit:
                 coeff = 1024
             # END handle arch
             self._window_size = coeff * self._MB_in_bytes
@@ -294,7 +294,7 @@ class StaticWindowMapManager(object):
 
         if max_memory_size == 0:
             coeff = 1024
-            if is_64_bit():
+            if is_64_bit:
                 coeff = 8192
             # END handle arch
             self._max_memory_size = coeff * self._MB_in_bytes

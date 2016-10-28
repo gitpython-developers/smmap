@@ -119,14 +119,6 @@ class MapRegion(object):
         '_uc',  # total amount of usages
         '__weakref__'
     ]
-    _need_compat_layer = sys.version_info[:2] < (2, 6)
-
-    if _need_compat_layer:
-        __slots__.append('_mfb')        # mapped memory buffer to provide offset
-    # END handle additional slot
-
-    #{ Configuration
-    #} END configuration
 
     def __init__(self, path_or_fd, ofs, size, flags=0):
         """Initialize a region, allocate the memory map
@@ -147,26 +139,11 @@ class MapRegion(object):
         # END handle fd
 
         try:
-            kwargs = dict(access=ACCESS_READ, offset=ofs)
-            corrected_size = size
-            sizeofs = ofs
-            if self._need_compat_layer:
-                del(kwargs['offset'])
-                corrected_size += ofs
-                sizeofs = 0
-            # END handle python not supporting offset ! Arg
-
-            # have to correct size, otherwise (instead of the c version) it will
-            # bark that the size is too large ... many extra file accesses because
-            # if this ... argh !
-            actual_size = min(os.fstat(fd).st_size - sizeofs, corrected_size)
-            self._mf = mmap(fd, actual_size, **kwargs)
+            actual_size = min(os.fstat(fd).st_size - ofs, size)
+            self._mf = mmap(fd, actual_size, access=ACCESS_READ, offset=ofs)
             # END handle memory mode
 
             self._size = len(self._mf)
-
-            if self._need_compat_layer:
-                self._mfb = buffer(self._mf, ofs, self._size)
             # END handle buffer wrapping
         finally:
             if not isinstance(path_or_fd, int):
@@ -209,7 +186,7 @@ class MapRegion(object):
         """:return: number of clients currently using this region"""
         return self._uc
 
-    def increment_client_count(self, ofs = 1):
+    def increment_client_count(self, ofs=1):
         """Adjust the usage count by the given positive or negative offset.
         If usage count equals 0, we will auto-release our resources
         :return: True if we released resources, False otherwise. In the latter case, we can still be used"""
@@ -226,22 +203,6 @@ class MapRegion(object):
     def release(self):
         """Release all resources this instance might hold. Must only be called if there usage_count() is zero"""
         self._mf.close()
-
-    # re-define all methods which need offset adjustments in compatibility mode
-    if _need_compat_layer:
-        def size(self):
-            return self._size - self._b
-
-        def ofs_end(self):
-            # always the size - we are as large as it gets
-            return self._size
-
-        def buffer(self):
-            return self._mfb
-
-        def includes_ofs(self, ofs):
-            return self._b <= ofs < self._size
-    # END handle compat layer
 
     #} END interface
 
