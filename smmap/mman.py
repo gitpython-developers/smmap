@@ -1,4 +1,10 @@
 """Module containing a memory memory manager which provides a sliding window on a number of memory mapped files"""
+from functools import reduce
+import logging
+import sys
+
+from smmap.util import suppress
+
 from .util import (
     MapWindow,
     MapRegion,
@@ -8,10 +14,10 @@ from .util import (
     buffer,
 )
 
-import sys
-from functools import reduce
 
 __all__ = ["StaticWindowMapManager", "SlidingWindowMapManager", "WindowCursor"]
+
+log = logging.getLogger(__name__)
 #{ Utilities
 
 #}END utilities
@@ -242,11 +248,16 @@ class StaticWindowMapManager(object):
 
     Clients must be written to specifically know that they are accessing their data
     through a StaticWindowMapManager, as they otherwise have to deal with their window size.
-
     These clients would have to use a SlidingWindowMapBuffer to hide this fact.
 
     This type will always use a maximum window size, and optimize certain methods to
-    accommodate this fact"""
+    accommodate this fact
+
+    .. Tip::
+        This is can be used optionally as a non-reetrant context-manager
+        inside a ``with ...:`` block.  Any errors on :meth:`close()` will be reported
+        as warnings.
+    """
 
     __slots__ = [
         '_fdict',           # mapping of path -> StorageHelper (of some kind
@@ -386,6 +397,28 @@ class StaticWindowMapManager(object):
     #}END internal methods
 
     #{ Interface
+    def __del__(self):
+        self.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        with suppress(Exception):
+            self.close()
+
+    def close(self):
+        """Close all regions and relying memmaps.
+
+        :raise: any error while closing
+
+        .. Note::
+            Not to fail on *Windows*, all files referencing mmaps must have been closed.
+            If used as a context manager, any errors are suppressed.
+        """
+        left_regions = self.collect()
+        log.debug('Mem-man %s collected %s regions on closing.' % (self, len(left_regions)))
+
     def make_cursor(self, path_or_fd):
         """
         :return: a cursor pointing to the given path or file descriptor.

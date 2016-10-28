@@ -54,44 +54,45 @@ class TestMMan(TestBase):
         static_man = StaticWindowMapManager()
 
         for man in (static_man, slide_man):
-            assert man.num_file_handles() == 0
-            assert man.num_open_files() == 0
-            winsize_cmp_val = 0
-            if isinstance(man, StaticWindowMapManager):
-                winsize_cmp_val = -1
-            # END handle window size
-            assert man.window_size() > winsize_cmp_val
-            assert man.mapped_memory_size() == 0
-            assert man.max_mapped_memory_size() > 0
+            with man:
+                assert man.num_file_handles() == 0
+                assert man.num_open_files() == 0
+                winsize_cmp_val = 0
+                if isinstance(man, StaticWindowMapManager):
+                    winsize_cmp_val = -1
+                # END handle window size
+                assert man.window_size() > winsize_cmp_val
+                assert man.mapped_memory_size() == 0
+                assert man.max_mapped_memory_size() > 0
 
-            # collection doesn't raise in 'any' mode
-            self.assertEqual(man._purge_lru_regions(0), 0)
-            # doesn't raise if we are within the limit
-            self.assertEqual(man._purge_lru_regions(10), 0)
-            # doesn't fail if we over-allocate
-            self.assertEqual(man._purge_lru_regions(sys.maxsize), 0)
+                # collection doesn't raise in 'any' mode
+                self.assertEqual(man._purge_lru_regions(0), 0)
+                # doesn't raise if we are within the limit
+                self.assertEqual(man._purge_lru_regions(10), 0)
+                # doesn't fail if we over-allocate
+                self.assertEqual(man._purge_lru_regions(sys.maxsize), 0)
 
-            # use a region, verify most basic functionality
-            with FileCreator(self.k_window_test_size, "manager_test") as fc:
-                fd = os.open(fc.path, os.O_RDONLY)
-                try:
-                    for item in (fc.path, fd):
-                        c = man.make_cursor(item)
-                        assert c.path_or_fd() is item
-                        assert c.use_region(10, 10).is_valid()
-                        assert c.ofs_begin() == 10
-                        assert c.size() == 10
-                        with open(fc.path, 'rb') as fp:
-                            assert c.buffer()[:] == fp.read(20)[10:]
+                # use a region, verify most basic functionality
+                with FileCreator(self.k_window_test_size, "manager_test") as fc:
+                    fd = os.open(fc.path, os.O_RDONLY)
+                    try:
+                        for item in (fc.path, fd):
+                            c = man.make_cursor(item)
+                            assert c.path_or_fd() is item
+                            assert c.use_region(10, 10).is_valid()
+                            assert c.ofs_begin() == 10
+                            assert c.size() == 10
+                            with open(fc.path, 'rb') as fp:
+                                assert c.buffer()[:] == fp.read(20)[10:]
 
-                    if isinstance(item, int):
-                        self.assertRaises(ValueError, c.path)
-                    else:
-                        self.assertRaises(ValueError, c.fd)
-                    # END handle value error
-                # END for each input
-                finally:
-                    os.close(fd)
+                        if isinstance(item, int):
+                            self.assertRaises(ValueError, c.path)
+                        else:
+                            self.assertRaises(ValueError, c.fd)
+                        # END handle value error
+                    # END for each input
+                    finally:
+                        os.close(fd)
         # END for each manasger type
 
     def test_memman_operation(self):
