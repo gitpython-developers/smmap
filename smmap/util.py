@@ -1,8 +1,10 @@
 """Module containing a memory memory manager which provides a sliding window on a number of memory mapped files"""
+import logging
+from mmap import mmap, ACCESS_READ
 import os
 import sys
 
-from mmap import mmap, ACCESS_READ
+
 try:
     from mmap import ALLOCATIONGRANULARITY
 except ImportError:
@@ -16,6 +18,8 @@ __all__ = ["PY3", "is_64_bit",
            "align_to_mmap", "buffer",
            "MapWindow", "MapRegion", "MapRegionList",
            ]
+
+log = logging.getLogger(__name__)
 
 #{ Utilities
 
@@ -60,6 +64,40 @@ def align_to_mmap(num, round_up):
 
 
 #{ Utility Classes
+
+## Copied from python std-lib.
+class suppress:
+    """Context manager to suppress specified exceptions
+
+    After the exception is suppressed, execution proceeds with the next
+    statement following the with statement.
+
+         with suppress(FileNotFoundError):
+             os.remove(somefile)
+         # Execution still resumes here if the file was already removed
+    """
+
+    def __init__(self, *exceptions):
+        self._exceptions = exceptions
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exctype, excinst, exctb):
+        # Unlike isinstance and issubclass, CPython exception handling
+        # currently only looks at the concrete type hierarchy (ignoring
+        # the instance and subclass checking hooks). While Guido considers
+        # that a bug rather than a feature, it's a fairly hard one to fix
+        # due to various internal implementation details. suppress provides
+        # the simpler issubclass based semantics, rather than trying to
+        # exactly reproduce the limitations of the CPython interpreter.
+        #
+        # See http://bugs.python.org/issue12029 for more details
+        supp = exctype is not None and issubclass(exctype, self._exceptions)
+        if supp:
+            log.debug("Suppressed exception: %s(%s)", exctype, excinst, exc_info=1)
+        return supp
+
 
 class MapWindow(object):
 
