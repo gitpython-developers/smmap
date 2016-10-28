@@ -11,8 +11,11 @@ except ImportError:
     from mmap import PAGESIZE as ALLOCATIONGRANULARITY
 # END handle pythons missing quality assurance
 
-__all__ = ["align_to_mmap", "is_64_bit", "buffer",
-           "MapWindow", "MapRegion", "MapRegionList", "ALLOCATIONGRANULARITY"]
+__all__ = ["PY3", "is_64_bit",
+           "ALLOCATIONGRANULARITY",
+           "align_to_mmap", "buffer",
+           "MapWindow", "MapRegion", "MapRegionList",
+           ]
 
 #{ Utilities
 
@@ -27,8 +30,13 @@ except NameError:
         return obj[offset:offset + size]
 
 
+#:True if the system is 64 bit. Otherwise it can be assumed to be 32 bit
+is_64_bit = sys.maxsize > (1 << 32) - 1
+PY3 = sys.version_info[0] >= 3
+
+
 def string_types():
-    if sys.version_info[0] >= 3:
+    if PY3:
         return str
     else:
         return basestring  # @UndefinedVariable
@@ -47,10 +55,6 @@ def align_to_mmap(num, round_up):
     # END handle size
     return res
 
-
-def is_64_bit():
-    """:return: True if the system is 64 bit. Otherwise it can be assumed to be 32 bit"""
-    return sys.maxsize > (1 << 32) - 1
 
 #}END utilities
 

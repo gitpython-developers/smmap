@@ -100,6 +100,6 @@ class TestMMan(TestBase):
                 os.close(fd)
 
     def test_util(self):
-        assert isinstance(is_64_bit(), bool)    # just call it
+        assert isinstance(is_64_bit, bool)    # just call it
         assert align_to_mmap(1, False) == 0
         assert align_to_mmap(1, True) == ALLOCATIONGRANULARITY
