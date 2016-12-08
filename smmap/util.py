@@ -18,21 +18,23 @@ __all__ = ["align_to_mmap", "is_64_bit", "buffer",
 
 try:
     # Python 2
-    buffer = buffer
+    buffer = buffer  # @UndefinedVariable
 except NameError:
     # Python 3 has no `buffer`; only `memoryview`
     def buffer(obj, offset, size):
-        # Actually, for gitpython this is fastest ... .
-        return memoryview(obj)[offset:offset+size]
-        # doing it directly is much faster !
-        # return obj[offset:offset + size]
+        # Actually, for gitpython this is fastest ... but `memoryviews` LEAK!
+        #return memoryview(obj)[offset:offset + size]
+        return obj[offset:offset + size]
+
+
+PY3 = sys.version_info[0] >= 3
 
 
 def string_types():
-    if sys.version_info[0] >= 3:
+    if PY3:
         return str
     else:
-        return basestring
+        return basestring  # @UndefinedVariable
 
 
 def align_to_mmap(num, round_up):
@@ -63,7 +65,7 @@ class MapWindow(object):
     """Utility type which is used to snap windows towards each other, and to adjust their size"""
     __slots__ = (
         'ofs',      # offset into the file in bytes
-        'size'              # size of the window in bytes
+        'size'      # size of the window in bytes
     )
 
     def __init__(self, offset, size):
@@ -76,7 +78,7 @@ class MapWindow(object):
     @classmethod
     def from_region(cls, region):
         """:return: new window from a region"""
-        return cls(region._b, region.size())
+        return cls(region._ofs, region.size())
 
     def ofs_end(self):
         return self.ofs + self.size
@@ -110,10 +112,10 @@ class MapRegion(object):
 
     **Note:** deallocates used region automatically on destruction"""
     __slots__ = [
-        '_b',   # beginning of mapping
-        '_mf',  # mapped memory chunk (as returned by mmap)
-        '_uc',  # total amount of usages
+        '_ofs',   # beginning of mapping
         '_size',  # cached size of our memory map
+        '_mf',    # mapped memory chunk (as returned by mmap)
+        '_uc',    # total amount of usages
         '__weakref__'
     ]
     _need_compat_layer = sys.version_info[:2] < (2, 6)
@@ -133,7 +135,7 @@ class MapRegion(object):
             allocated the the size automatically adjusted
         :param flags: additional flags to be given when opening the file.
         :raise Exception: if no memory can be allocated"""
-        self._b = ofs
+        self._ofs = ofs
         self._size = 0
         self._uc = 0
 
@@ -141,8 +143,6 @@ class MapRegion(object):
             fd = path_or_fd
         else:
             fd = os.open(path_or_fd, os.O_RDONLY | getattr(os, 'O_BINARY', 0) | flags)
-        # END handle fd
-
         try:
             kwargs = dict(access=ACCESS_READ, offset=ofs)
             corrected_size = size
@@ -166,7 +166,7 @@ class MapRegion(object):
                 self._mfb = buffer(self._mf, ofs, self._size)
             # END handle buffer wrapping
         finally:
-            if isinstance(path_or_fd, string_types()):
+            if not isinstance(path_or_fd, int):
                 os.close(fd)
             # END only close it if we opened it
         # END close file handle
@@ -174,7 +174,7 @@ class MapRegion(object):
         self.increment_client_count()
 
     def __repr__(self):
-        return "MapRegion<%i, %i>" % (self._b, self.size())
+        return "MapRegion<%i, %i>" % (self._ofs, self.size())
 
     #{ Interface
 
@@ -188,7 +188,7 @@ class MapRegion(object):
 
     def ofs_begin(self):
         """:return: absolute byte offset to the first byte of the mapping"""
-        return self._b
+        return self._ofs
 
     def size(self):
         """:return: total size of the mapped region in bytes"""
@@ -196,17 +196,17 @@ class MapRegion(object):
 
     def ofs_end(self):
         """:return: Absolute offset to one byte beyond the mapping into the file"""
-        return self._b + self._size
+        return self._ofs + self._size
 
     def includes_ofs(self, ofs):
         """:return: True if the given offset can be read in our mapped region"""
-        return self._b <= ofs < self._b + self._size
+        return self._ofs <= ofs < self._ofs + self._size
 
     def client_count(self):
         """:return: number of clients currently using this region"""
         return self._uc
 
-    def increment_client_count(self, ofs = 1):
+    def increment_client_count(self, ofs=1):
         """Adjust the usage count by the given positive or negative offset.
         If usage count equals 0, we will auto-release our resources
         :return: True if we released resources, False otherwise. In the latter case, we can still be used"""
@@ -227,7 +227,7 @@ class MapRegion(object):
     # re-define all methods which need offset adjustments in compatibility mode
     if _need_compat_layer:
         def size(self):
-            return self._size - self._b
+            return self._size - self._ofs
 
         def ofs_end(self):
             # always the size - we are as large as it gets
@@ -237,7 +237,7 @@ class MapRegion(object):
             return self._mfb
 
         def includes_ofs(self, ofs):
-            return self._b <= ofs < self._size
+            return self._ofs <= ofs < self._size
     # END handle compat layer
 
     #} END interface
@@ -272,5 +272,10 @@ class MapRegionList(list):
             # END handle path type
         # END update file size
         return self._file_size
+
+    def collect_closed_regions(self):
+        """a PY3+ utility for assertions"""
+        # The `closed` attribute is PY3.2+
+        return [region for region in self if getattr(region._mf, 'closed', None)]
 
 #} END utility classes

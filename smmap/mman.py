@@ -1,5 +1,10 @@
 """Module containing a memory memory manager which provides a sliding window on a number of memory mapped files"""
+from functools import reduce
+import logging
+import sys
+
 from .util import (
+    PY3,
     MapWindow,
     MapRegion,
     MapRegionList,
@@ -7,13 +12,12 @@ from .util import (
     string_types,
     buffer,
 )
+import gc
 
-import sys
-from functools import reduce
 
-__all__ = ["StaticWindowMapManager", "SlidingWindowMapManager", "WindowCursor"]
+__all__ = ['managed_mmaps', "StaticWindowMapManager", "SlidingWindowMapManager", "WindowCursor"]
 #{ Utilities
-
+log = logging.getLogger(__name__)
 #}END utilities
 
 
@@ -25,9 +29,15 @@ class WindowCursor(object):
 
     Cursors should not be created manually, but are instead returned by the SlidingWindowMapManager
 
-    **Note:**: The current implementation is suited for static and sliding window managers, but it also means
-    that it must be suited for the somewhat quite different sliding manager. It could be improved, but
-    I see no real need to do so."""
+    .. Tip::
+        This is a re-entrant, but not thread-safe context-manager, to be used within a ``with ...:`` block,
+        to ensure any left-overs cursors are cleaned up.  If not entered, :meth:`use_region()``
+        will scream.
+
+    .. Note::
+        The current implementation is suited for static and sliding window managers,
+        but it also means that it must be suited for the somewhat quite different sliding manager.
+        It could be improved, but I see no real need to do so."""
     __slots__ = (
         '_manager',  # the manger keeping all file regions
         '_rlist',   # a regions list with regions for our file
@@ -42,9 +52,6 @@ class WindowCursor(object):
         self._region = None
         self._ofs = 0
         self._size = 0
-
-    def __del__(self):
-        self._destroy()
 
     def __enter__(self):
         return self
@@ -113,6 +120,8 @@ class WindowCursor(object):
 
         **Note:**: The size actually mapped may be smaller than the given size. If that is the case,
         either the file has reached its end, or the map was created between two existing regions"""
+        self._manager._check_if_entered()
+
         need_region = True
         man = self._manager
         fsize = self._rlist.file_size()
@@ -136,7 +145,7 @@ class WindowCursor(object):
             self._region.increment_client_count()
         # END need region handling
 
-        self._ofs = offset - self._region._b
+        self._ofs = offset - self._region._ofs
         self._size = min(size, self._region.ofs_end() - offset)
 
         return self
@@ -182,12 +191,12 @@ class WindowCursor(object):
         """:return: offset to the first byte pointed to by our cursor
 
         **Note:** only if is_valid() is True"""
-        return self._region._b + self._ofs
+        return self._region._ofs + self._ofs
 
     def ofs_end(self):
         """:return: offset to one past the last available byte"""
         # unroll method calls for performance !
-        return self._region._b + self._ofs + self._size
+        return self._region._ofs + self._ofs + self._size
 
     def size(self):
         """:return: amount of bytes we point to"""
@@ -204,7 +213,7 @@ class WindowCursor(object):
 
         **Note:** cursor must be valid for this to work"""
         # unroll methods
-        return (self._region._b + self._ofs) <= ofs < (self._region._b + self._ofs + self._size)
+        return (self._region._ofs + self._ofs) <= ofs < (self._region._ofs + self._ofs + self._size)
 
     def file_size(self):
         """:return: size of the underlying file"""
@@ -235,6 +244,25 @@ class WindowCursor(object):
     #} END interface
 
 
+def managed_mmaps(check_entered=True):
+    """Makes a memory-map context-manager instance for the correct python-version.
+
+    :param bool check_entered:
+        whether to scream if not used as context-manager (`with` block)
+    :return:
+        either :class:`SlidingWindowMapManager` or :class:`StaticWindowMapManager` (if PY2)
+
+        If you want to change other default parameters of these classes, use them directly.
+
+        .. Tip::
+            Use it in a ``with ...:`` block, to free cached (and unused) resources.
+
+    """
+    mman = SlidingWindowMapManager if PY3 else StaticWindowMapManager
+
+    return mman(check_entered=check_entered)
+
+
 class StaticWindowMapManager(object):
 
     """Provides a manager which will produce single size cursors that are allowed
@@ -246,15 +274,24 @@ class StaticWindowMapManager(object):
     These clients would have to use a SlidingWindowMapBuffer to hide this fact.
 
     This type will always use a maximum window size, and optimize certain methods to
-    accommodate this fact"""
+    accommodate this fact
+
+    .. Tip::
+        The *memory-managers* are re-entrant, but not thread-safe context-manager(s),
+        to be used within a ``with ...:`` block, ensuring any left-overs cursors are cleaned up.
+        If not entered, :meth:`make_cursor()` and/or :meth:`WindowCursor.use_region()` will scream.
+
+    """
 
     __slots__ = [
-        '_fdict',           # mapping of path -> StorageHelper (of some kind
-        '_window_size',     # maximum size of a window
-        '_max_memory_size',  # maximum amount of memory we may allocate
-        '_max_handle_count',        # maximum amount of handles to keep open
-        '_memory_size',     # currently allocated memory size
+        '_fdict',               # mapping of path -> StorageHelper (of some kind
+        '_window_size',         # maximum size of a window
+        '_max_memory_size',     # maximum amount of memory we may allocate
+        '_max_handle_count',    # maximum amount of handles to keep open
+        '_memory_size',         # currently allocated memory size
         '_handle_count',        # amount of currently allocated file handles
+        '_entered',             # updated on enter/exit, when 0, `close()`
+        'check_entered',        # bool, whether to scream if not used as context-manager (`with` block)
     ]
 
     #{ Configuration
@@ -266,7 +303,8 @@ class StaticWindowMapManager(object):
 
     _MB_in_bytes = 1024 * 1024
 
-    def __init__(self, window_size=0, max_memory_size=0, max_open_handles=sys.maxsize):
+    def __init__(self, window_size=0, max_memory_size=0, max_open_handles=sys.maxsize,
+                 check_entered=True):
         """initialize the manager with the given parameters.
         :param window_size: if -1, a default window size will be chosen depending on
             the operating system's architecture. It will internally be quantified to a multiple of the page size
@@ -276,13 +314,17 @@ class StaticWindowMapManager(object):
             It is a soft limit that is tried to be kept, but nothing bad happens if we have to over-allocate
         :param max_open_handles: if not maxint, limit the amount of open file handles to the given number.
             Otherwise the amount is only limited by the system itself. If a system or soft limit is hit,
-            the manager will free as many handles as possible"""
+            the manager will free as many handles as possible
+        :param bool check_entered: whether to scream if not used as context-manager (`with` block)
+        """
         self._fdict = dict()
         self._window_size = window_size
         self._max_memory_size = max_memory_size
         self._max_handle_count = max_open_handles
         self._memory_size = 0
         self._handle_count = 0
+        self._entered = 0
+        self.check_entered = check_entered
 
         if window_size < 0:
             coeff = 64
@@ -299,6 +341,31 @@ class StaticWindowMapManager(object):
             # END handle arch
             self._max_memory_size = coeff * self._MB_in_bytes
         # END handle max memory size
+
+    def __enter__(self):
+        assert self._entered >= 0, self._entered
+        self._entered += 1
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        assert self._entered > 0, self._entered
+        self._entered -= 1
+        if self._entered == 0:
+            # Try to close all file-handles
+            #(a *Windows* only issue, and probably not fixed)
+            gc.collect()
+            leaft_overs = self.collect()
+            if leaft_overs:
+                log.debug("Cleaned up %s left-over mmap-regions." % leaft_overs)
+
+    def __del__(self):
+        if self._entered != 0:
+            log.warning("Missed %s exit(s) on %s!" % (self._entered, self))
+            self.close()
+
+    def close(self):
+        self.collect()
 
     #{ Internal Methods
 
@@ -322,9 +389,11 @@ class StaticWindowMapManager(object):
             lru_list = None
             for regions in self._fdict.values():
                 for region in regions:
-                    # check client count - if it's 1, it's just us
+                    ## Check client count - if it's 1, it's just us.
+                    #
                     if (region.client_count() == 1 and
-                            (lru_region is None or region._uc < lru_region._uc)):
+                            (lru_region is None or
+                             region.client_count() < lru_region.client_count())):
                         lru_region = region
                         lru_list = regions
                     # END update lru_region
@@ -381,6 +450,10 @@ class StaticWindowMapManager(object):
         assert r.includes_ofs(offset)
         return r
 
+    def _check_if_entered(self):
+        if self.check_entered and self._entered <= 0:
+            raise ValueError('Context-manager %s not entered!' % self)
+
     #}END internal methods
 
     #{ Interface
@@ -400,8 +473,12 @@ class StaticWindowMapManager(object):
 
         **Note:** Using file descriptors directly is faster once new windows are mapped as it
         prevents the file to be opened again just for the purpose of mapping it."""
+        self._check_if_entered()
+
         regions = self._fdict.get(path_or_fd)
-        if regions is None:
+        if regions:
+            assert not regions.collect_closed_regions(), regions.collect_closed_regions()
+        else:
             regions = self.MapRegionListCls(path_or_fd)
             self._fdict[path_or_fd] = regions
         # END obtain region for path
@@ -484,11 +561,12 @@ class SlidingWindowMapManager(StaticWindowMapManager):
         a safe amount of memory already, which would possibly cause memory allocations to fail as our address
         space is full."""
 
-    __slots__ = tuple()
+    __slots__ = ()
 
-    def __init__(self, window_size=-1, max_memory_size=0, max_open_handles=sys.maxsize):
+    def __init__(self, window_size=-1, max_memory_size=0, max_open_handles=sys.maxsize,
+                 check_entered=True):
         """Adjusts the default window size to -1"""
-        super(SlidingWindowMapManager, self).__init__(window_size, max_memory_size, max_open_handles)
+        super(SlidingWindowMapManager, self).__init__(window_size, max_memory_size, max_open_handles, check_entered)
 
     def _obtain_region(self, a, offset, size, flags, is_recursive):
         # bisect to find an existing region. The c++ implementation cannot
@@ -498,7 +576,7 @@ class SlidingWindowMapManager(StaticWindowMapManager):
         hi = len(a)
         while lo < hi:
             mid = (lo + hi) // 2
-            ofs = a[mid]._b
+            ofs = a[mid]._ofs
             if ofs <= offset:
                 if a[mid].includes_ofs(offset):
                     r = a[mid]
@@ -527,14 +605,14 @@ class SlidingWindowMapManager(StaticWindowMapManager):
             insert_pos = 0
             len_regions = len(a)
             if len_regions == 1:
-                if a[0]._b <= offset:
+                if a[0]._ofs <= offset:
                     insert_pos = 1
                 # END maintain sort
             else:
                 # find insert position
                 insert_pos = len_regions
                 for i, region in enumerate(a):
-                    if region._b > offset:
+                    if region._ofs > offset:
                         insert_pos = i
                         break
                     # END if insert position is correct
