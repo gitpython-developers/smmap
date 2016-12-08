@@ -5,6 +5,12 @@ When reading from many possibly large files in a fashion similar to random acces
 Although memory maps have many advantages, they represent a very limited system resource as every map uses one file descriptor, whose amount is limited per process. On 32 bit systems, the amount of memory you can have mapped at a time is naturally limited to theoretical 4GB of memory, which may not be enough for some applications.
 
 
+## Limitations
+
+* **System resources (file-handles) are likely to be leaked!** This is due to the library authors reliance on a deterministic `__del__()` destructor.
+* The memory access is read-only by design.
+* In python below 2.6, memory maps will be created in compatibility mode which works, but creates inefficient memory mappings as they always start at offset 0.
+
 
 ## Overview
 
@@ -32,11 +38,6 @@ For performance critical 64 bit applications, a simplified version of memory map
 * OSX, Windows or Linux
 
 The package was tested on all of the previously mentioned configurations.
-
-## Limitations
-
-* The memory access is read-only by design.
-* In python below 2.6, memory maps will be created in compatibility mode which works, but creates inefficient memory mappings as they always start at offset 0.
 
 ## Installing smmap
 
