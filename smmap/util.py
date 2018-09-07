@@ -3,13 +3,7 @@ import os
 import sys
 
 from mmap import mmap, ACCESS_READ
-try:
-    from mmap import ALLOCATIONGRANULARITY
-except ImportError:
-    # in python pre 2.6, the ALLOCATIONGRANULARITY does not exist as it is mainly
-    # useful for aligning the offset. The offset argument doesn't exist there though
-    from mmap import PAGESIZE as ALLOCATIONGRANULARITY
-# END handle pythons missing quality assurance
+from mmap import ALLOCATIONGRANULARITY
 
 __all__ = ["align_to_mmap", "is_64_bit", "buffer",
            "MapWindow", "MapRegion", "MapRegionList", "ALLOCATIONGRANULARITY"]
@@ -116,11 +110,6 @@ class MapRegion(object):
         '_size',  # cached size of our memory map
         '__weakref__'
     ]
-    _need_compat_layer = sys.version_info[:2] < (2, 6)
-
-    if _need_compat_layer:
-        __slots__.append('_mfb')        # mapped memory buffer to provide offset
-    # END handle additional slot
 
     #{ Configuration
     #} END configuration
@@ -147,11 +136,6 @@ class MapRegion(object):
             kwargs = dict(access=ACCESS_READ, offset=ofs)
             corrected_size = size
             sizeofs = ofs
-            if self._need_compat_layer:
-                del(kwargs['offset'])
-                corrected_size += ofs
-                sizeofs = 0
-            # END handle python not supporting offset ! Arg
 
             # have to correct size, otherwise (instead of the c version) it will
             # bark that the size is too large ... many extra file accesses because
@@ -161,10 +145,6 @@ class MapRegion(object):
             # END handle memory mode
 
             self._size = len(self._mf)
-
-            if self._need_compat_layer:
-                self._mfb = buffer(self._mf, ofs, self._size)
-            # END handle buffer wrapping
         finally:
             if isinstance(path_or_fd, string_types()):
                 os.close(fd)
@@ -223,22 +203,6 @@ class MapRegion(object):
     def release(self):
         """Release all resources this instance might hold. Must only be called if there usage_count() is zero"""
         self._mf.close()
-
-    # re-define all methods which need offset adjustments in compatibility mode
-    if _need_compat_layer:
-        def size(self):
-            return self._size - self._b
-
-        def ofs_end(self):
-            # always the size - we are as large as it gets
-            return self._size
-
-        def buffer(self):
-            return self._mfb
-
-        def includes_ofs(self, ofs):
-            return self._b <= ofs < self._size
-    # END handle compat layer
 
     #} END interface
 

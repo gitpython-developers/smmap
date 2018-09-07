@@ -9,7 +9,6 @@ Although memory maps have many advantages, they represent a very limited system 
 
 * **System resources (file-handles) are likely to be leaked!** This is due to the library authors reliance on a deterministic `__del__()` destructor.
 * The memory access is read-only by design.
-* In python below 2.6, memory maps will be created in compatibility mode which works, but creates inefficient memory mappings as they always start at offset 0.
 
 
 ## Overview
@@ -34,7 +33,7 @@ For performance critical 64 bit applications, a simplified version of memory map
 
 ## Prerequisites
 
-* Python 2.4, 2.5, 2.6, 2.7 or 3.3
+* Python 2.7 or 3.4+
 * OSX, Windows or Linux
 
 The package was tested on all of the previously mentioned configurations.
