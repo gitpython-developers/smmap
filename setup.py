@@ -13,12 +13,12 @@ import smmap
 if os.path.exists("README.md"):
     long_description = codecs.open('README.md', "r", "utf-8").read()
 else:
-    long_description = "See http://github.com/gitpython-developers/smmap"
+    long_description = "See https://github.com/gitpython-developers/smmap"
 
 setup(
     name="smmap2",
     version=smmap.__version__,
-    description="A pure python implementation of a sliding window memory map manager",
+    description="A pure Python implementation of a sliding window memory map manager",
     author=smmap.__author__,
     author_email=smmap.__contact__,
     url=smmap.__homepage__,
@@ -45,10 +45,8 @@ setup(
         "Operating System :: MacOS :: MacOS X",
         "Programming Language :: Python",
         "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.6",
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
