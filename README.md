@@ -78,6 +78,10 @@ Issues can be filed on github:
 
 * https://github.com/gitpython-developers/smmap/issues
 
+A link to the pypi page related to this repository:
+
+* https://pypi.org/project/smmap2/
+
 
 ## License Information
 
