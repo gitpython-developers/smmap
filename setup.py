@@ -16,7 +16,7 @@ else:
     long_description = "See https://github.com/gitpython-developers/smmap"
 
 setup(
-    name="smmap2",
+    name="smmap",
     version=smmap.__version__,
     description="A pure Python implementation of a sliding window memory map manager",
     author=smmap.__author__,
