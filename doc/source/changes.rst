@@ -2,6 +2,14 @@
 Changelog
 #########
 
+******
+v3.0.1
+******
+- Switched back to the smmap package name on PyPI and fixed the smmap2 mirror package
+  (`#44 <https://github.com/gitpython-developers/smmap/issues/44>`_)
+- Fixed setup.py ``long_description`` rendering
+  (`#40 <https://github.com/gitpython-developers/smmap/pull/40>`_)
+
 **********
 v0.9.0
 **********
