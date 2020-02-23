@@ -80,7 +80,7 @@ Issues can be filed on github:
 
 A link to the pypi page related to this repository:
 
-* https://pypi.org/project/smmap/
+* https://pypi.org/project/smmap2/
 
 
 ## License Information

@@ -16,7 +16,7 @@ else:
     long_description = "See https://github.com/gitpython-developers/smmap"
 
 setup(
-    name="smmap",
+    name="smmap2",
     version=smmap.__version__,
     description="A pure Python implementation of a sliding window memory map manager",
     author=smmap.__author__,
@@ -25,6 +25,7 @@ setup(
     platforms=["any"],
     license="BSD",
     packages=find_packages(),
+    install_requires=['smmap>=3'],
     zip_safe=True,
     python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*",
     classifiers=[
