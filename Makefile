@@ -43,7 +43,7 @@ release: clean
 	@test "$$(git rev-parse head)" = "$$(git tag | sort -nr | head -n1 | xargs git rev-parse)"
 	make force_release
 
-force_release: clean
+force_release:: clean
 	git push --tags
-	python setup.py sdist bdist_wheel
-	twine upload -s -i byronimo@gmail.com dist/*
+	python3 setup.py sdist bdist_wheel
+	twine upload -s -i 763629FEC8788FC35128B5F6EE029D1E5EB40300 dist/*
