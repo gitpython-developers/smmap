@@ -1,3 +1,4 @@
+# NOT USED, just for reference. See github actions for CI configuration
 # CI on Windows via appveyor
 environment:
 

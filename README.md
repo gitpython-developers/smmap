@@ -13,9 +13,7 @@ Although memory maps have many advantages, they represent a very limited system 
 
 ## Overview
 
-[![Build Status](https://travis-ci.org/gitpython-developers/smmap.svg?branch=master)](https://travis-ci.org/gitpython-developers/smmap)
-[![Build status](https://ci.appveyor.com/api/projects/status/kuws846av5lvmugo?svg=true&passingText=windows%20OK&failingText=windows%20failed)](https://ci.appveyor.com/project/Byron/smmap)
-[![Coverage Status](https://coveralls.io/repos/gitpython-developers/smmap/badge.png)](https://coveralls.io/r/gitpython-developers/smmap)
+![Python package](https://github.com/gitpython-developers/smmap/workflows/Python%20package/badge.svg)
 [![Issue Stats](http://www.issuestats.com/github/gitpython-developers/smmap/badge/pr)](http://www.issuestats.com/github/gitpython-developers/smmap)
 [![Issue Stats](http://www.issuestats.com/github/gitpython-developers/smmap/badge/issue)](http://www.issuestats.com/github/gitpython-developers/smmap)
 
