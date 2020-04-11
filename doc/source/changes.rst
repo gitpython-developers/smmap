@@ -3,6 +3,12 @@ Changelog
 #########
 
 ******
+v3.0.2
+******
+
+- signed release
+
+******
 v3.0.1
 ******
 - Switched back to the smmap package name on PyPI and fixed the smmap2 mirror package
