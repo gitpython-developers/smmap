@@ -23,7 +23,11 @@ except NameError:
 
 
 def string_types():
-    return str
+    if sys.version_info[0] >= 3:
+        return str
+    else:
+        return basestring
+
 
 def align_to_mmap(num, round_up):
     """
