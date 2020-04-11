@@ -3,7 +3,7 @@ Changelog
 #########
 
 ******
-v3.0.2
+v3.0.3
 ******
 
 - signed release
