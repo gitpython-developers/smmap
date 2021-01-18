@@ -3,8 +3,6 @@ import sys
 
 __all__ = ["SlidingWindowMapBuffer"]
 
-import sys
-
 try:
     bytes
 except NameError:
