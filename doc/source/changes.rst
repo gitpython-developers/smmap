@@ -9,7 +9,7 @@ v3.0.4
 - signed release (with correct key this time)
 
 ******
-v3.0.3
+v3.0.2
 ******
 
 - signed release
