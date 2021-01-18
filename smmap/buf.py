@@ -3,11 +3,6 @@ import sys
 
 __all__ = ["SlidingWindowMapBuffer"]
 
-try:
-    bytes
-except NameError:
-    bytes = str
-
 
 class SlidingWindowMapBuffer(object):
 
