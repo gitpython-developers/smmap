@@ -26,7 +26,7 @@ def string_types():
     if sys.version_info[0] >= 3:
         return str
     else:
-        return basestring
+        return basestring  # noqa: F821
 
 
 def align_to_mmap(num, round_up):
