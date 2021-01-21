@@ -3,6 +3,12 @@ Changelog
 #########
 
 ******
+v3.0.5
+******
+
+- Restored Python 2 support removed in v3.0.2
+
+******
 v3.0.4
 ******
 
