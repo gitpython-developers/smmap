@@ -12,7 +12,8 @@ v3.0.4
 v3.0.2
 ******
 
-- signed release
+- Signed release
+- Switched to GitHub Actions for CI
 
 ******
 v3.0.1
