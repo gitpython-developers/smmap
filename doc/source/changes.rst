@@ -7,6 +7,8 @@ v3.0.5
 ******
 
 - Restored Python 2 support removed in v3.0.2
+- changed release signature key to 27C50E7F590947D7273A741E85194C08421980C9. See
+  https://keybase.io/byronbates for proof of ownership.
 
 ******
 v3.0.4
