@@ -29,7 +29,7 @@ For performance critical 64 bit applications, a simplified version of memory map
 
 ## Prerequisites
 
-* Python 2.7 or 3.4+
+* Python 3.4+
 * OSX, Windows or Linux
 
 The package was tested on all of the previously mentioned configurations.
