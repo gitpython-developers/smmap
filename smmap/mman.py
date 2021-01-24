@@ -4,7 +4,6 @@ from .util import (
     MapRegion,
     MapRegionList,
     is_64_bit,
-    string_types,
     buffer,
 )
 
@@ -227,7 +226,7 @@ class WindowCursor(object):
 
         **Note:** it is not required to be valid anymore
         :raise ValueError: if the mapping was not created by a file descriptor"""
-        if isinstance(self._rlist.path_or_fd(), string_types()):
+        if isinstance(self._rlist.path_or_fd(), str):
             raise ValueError("File descriptor queried although mapping was generated from path")
         # END handle type
         return self._rlist.path_or_fd()
