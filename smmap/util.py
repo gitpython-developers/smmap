@@ -5,21 +5,10 @@ import sys
 from mmap import mmap, ACCESS_READ
 from mmap import ALLOCATIONGRANULARITY
 
-__all__ = ["align_to_mmap", "is_64_bit", "buffer",
+__all__ = ["align_to_mmap", "is_64_bit",
            "MapWindow", "MapRegion", "MapRegionList", "ALLOCATIONGRANULARITY"]
 
 #{ Utilities
-
-try:
-    # Python 2
-    buffer = buffer
-except NameError:
-    # Python 3 has no `buffer`; only `memoryview`
-    def buffer(obj, offset, size):
-        # Actually, for gitpython this is fastest ... .
-        return memoryview(obj)[offset:offset+size]
-        # doing it directly is much faster !
-        # return obj[offset:offset + size]
 
 
 def align_to_mmap(num, round_up):

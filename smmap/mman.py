@@ -4,7 +4,6 @@ from .util import (
     MapRegion,
     MapRegionList,
     is_64_bit,
-    buffer,
 )
 
 import sys
@@ -160,7 +159,7 @@ class WindowCursor(object):
 
         **Note:** buffers should not be cached passed the duration of your access as it will
         prevent resources from being freed even though they might not be accounted for anymore !"""
-        return buffer(self._region.buffer(), self._ofs, self._size)
+        return memoryview(self._region.buffer())[self._ofs:self._ofs+self._size]
 
     def map(self):
         """
