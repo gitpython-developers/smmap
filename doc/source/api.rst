@@ -20,14 +20,6 @@ Buffers
    :members:
    :undoc-members:
 
-**********
-Exceptions
-**********
-
-.. automodule:: smmap.exc
-   :members:
-   :undoc-members:
-
 *********
 Utilities
 *********
