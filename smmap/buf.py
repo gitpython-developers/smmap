@@ -80,7 +80,6 @@ class SlidingWindowMapBuffer(object):
             ofs = i
             # It's fastest to keep tokens and join later, especially in py3, which was 7 times slower
             # in the previous iteration of this code
-            pyvers = sys.version_info[:2]
             md = list()
             while l:
                 c.use_region(ofs, l)
