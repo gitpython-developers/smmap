@@ -19,8 +19,6 @@ Smmap wraps an interface around mmap and tracks the mapped files as well as the 
 
 To allow processing large files even on 32 bit systems, it allows only portions of the file to be mapped. Once the user reads beyond the mapped region, smmap will automatically map the next required region, unloading unused regions using a LRU algorithm.
 
-The interface also works around the missing offset parameter in python implementations up to python 2.5.
-
 Although the library can be used most efficiently with its native interface, a Buffer implementation is provided to hide these details behind a simple string-like interface.
 
 For performance critical 64 bit applications, a simplified version of memory mapping is provided which always maps the whole file, but still provides the benefit of unloading unused mappings on demand.
