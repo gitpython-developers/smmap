@@ -3,6 +3,14 @@ Changelog
 #########
 
 ******
+v4.0.0
+******
+
+- Dropped support for Python 2.7 and 3.4
+- Added support for Python 3.7, 3.8, and 3.9
+- Removed unused exc.MemoryManagerError and exc.RegionCollectionError
+
+******
 v3.0.5
 ******
 
