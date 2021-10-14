@@ -4,7 +4,7 @@ import sys
 __all__ = ["SlidingWindowMapBuffer"]
 
 
-class SlidingWindowMapBuffer(object):
+class SlidingWindowMapBuffer:
 
     """A buffer like object which allows direct byte-wise object and slicing into
     memory of a mapped file. The mapping is controlled by the provided cursor.

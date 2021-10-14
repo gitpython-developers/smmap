@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 from .lib import TestBase, FileCreator
 
 from smmap.mman import (

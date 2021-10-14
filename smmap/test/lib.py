@@ -8,7 +8,7 @@ __all__ = ['TestBase', 'FileCreator']
 
 #{ Utilities
 
-class FileCreator(object):
+class FileCreator:
 
     """A instance which creates a temporary file with a prefix and a given size
     and provides this info to the user.

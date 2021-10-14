@@ -11,7 +11,7 @@ except ImportError:
 import smmap
 
 if os.path.exists("README.md"):
-    long_description = open('README.md', "r", encoding="utf-8").read().replace('\r\n', '\n')
+    long_description = open('README.md', encoding="utf-8").read().replace('\r\n', '\n')
 else:
     long_description = "See https://github.com/gitpython-developers/smmap"
 
