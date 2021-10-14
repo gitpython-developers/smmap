@@ -47,6 +47,4 @@ setup(
     ],
     long_description=long_description,
     long_description_content_type='text/markdown',
-    tests_require=('nose', 'nosexcover'),
-    test_suite='nose.collector'
 )

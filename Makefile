@@ -24,11 +24,11 @@ clean-files:
 clean: clean-files clean-docs
 
 test:
-	nosetests
+	pytest
 
 coverage:
-	nosetests --with-coverage --cover-package=smmap
-	
+	pytest --cov smmap --cov-report xml
+
 build:
 	./setup.py build
 	
