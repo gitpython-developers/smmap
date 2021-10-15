@@ -3,6 +3,13 @@ Changelog
 #########
 
 ******
+v5.0.0
+******
+
+- Dropped support 3.5
+- Added support for Python 3.10
+
+******
 v4.0.0
 ******
 
