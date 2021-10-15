@@ -15,7 +15,7 @@ __all__ = ["StaticWindowMapManager", "SlidingWindowMapManager", "WindowCursor"]
 #}END utilities
 
 
-class WindowCursor(object):
+class WindowCursor:
 
     """
     Pointer into the mapped region of the memory manager, keeping the map
@@ -233,7 +233,7 @@ class WindowCursor(object):
     #} END interface
 
 
-class StaticWindowMapManager(object):
+class StaticWindowMapManager:
 
     """Provides a manager which will produce single size cursors that are allowed
     to always map the whole file.
@@ -486,7 +486,7 @@ class SlidingWindowMapManager(StaticWindowMapManager):
 
     def __init__(self, window_size=-1, max_memory_size=0, max_open_handles=sys.maxsize):
         """Adjusts the default window size to -1"""
-        super(SlidingWindowMapManager, self).__init__(window_size, max_memory_size, max_open_handles)
+        super().__init__(window_size, max_memory_size, max_open_handles)
 
     def _obtain_region(self, a, offset, size, flags, is_recursive):
         # bisect to find an existing region. The c++ implementation cannot

@@ -34,7 +34,7 @@ def is_64_bit():
 
 #{ Utility Classes
 
-class MapWindow(object):
+class MapWindow:
 
     """Utility type which is used to snap windows towards each other, and to adjust their size"""
     __slots__ = (
@@ -80,7 +80,7 @@ class MapWindow(object):
         self.size = min(self.size + (window.ofs - self.ofs_end()), max_size)
 
 
-class MapRegion(object):
+class MapRegion:
 
     """Defines a mapped region of memory, aligned to pagesizes
 
@@ -198,7 +198,7 @@ class MapRegionList(list):
     )
 
     def __new__(cls, path):
-        return super(MapRegionList, cls).__new__(cls)
+        return super().__new__(cls)
 
     def __init__(self, path_or_fd):
         self._path_or_fd = path_or_fd
