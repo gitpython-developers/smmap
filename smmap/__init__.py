@@ -1,4 +1,4 @@
-"""Intialize the smmap package"""
+"""Initialize the smmap package"""
 
 __author__ = "Sebastian Thiel"
 __contact__ = "byronimo@gmail.com"
