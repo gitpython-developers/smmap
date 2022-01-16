@@ -30,7 +30,7 @@ class TestBuf(TestBase):
             self.assertRaises(ValueError, SlidingWindowMapBuffer, type(c)())            # invalid cursor
             self.assertRaises(ValueError, SlidingWindowMapBuffer, c, fc.size)       # offset too large
 
-            buf = SlidingWindowMapBuffer()                                              # can create uninitailized buffers
+            buf = SlidingWindowMapBuffer()                                              # can create uninitialized buffers
             assert buf.cursor() is None
 
             # can call end access any time

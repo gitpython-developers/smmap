@@ -154,7 +154,7 @@ class TestMMan(TestBase):
                         if man.window_size():
                             assert man.num_file_handles() == 2
                             assert c.size() < size
-                            assert c.region() is not rr  # old region is still available, but has not curser ref anymore
+                            assert c.region() is not rr  # old region is still available, but has not cursor ref anymore
                             assert rr.client_count() == 1  # only held by manager
                         else:
                             assert c.size() < fc.size
@@ -194,7 +194,7 @@ class TestMMan(TestBase):
                             # precondition
                             if man.window_size():
                                 assert max_mapped_memory_size >= mapped_memory_size()
-                            # END statics will overshoot, which is fine
+                            # END statistics will overshoot, which is fine
                             assert max_file_handles >= num_file_handles()
                             assert c.use_region(base_offset, (size or c.size())).is_valid()
                             csize = c.size()
@@ -205,7 +205,7 @@ class TestMMan(TestBase):
                             assert includes_ofs(base_offset + csize - 1)
                             assert not includes_ofs(base_offset + csize)
                         # END while we should do an access
-                        elapsed = max(time() - st, 0.001)  # prevent zero divison errors on windows
+                        elapsed = max(time() - st, 0.001)  # prevent zero division errors on windows
                         mb = float(1000 * 1000)
                         print("%s: Read %i mb of memory with %i random on cursor initialized with %s accesses in %fs (%f mb/s)\n"
                               % (mtype, memory_read / mb, max_random_accesses, type(item), elapsed, (memory_read / mb) / elapsed),

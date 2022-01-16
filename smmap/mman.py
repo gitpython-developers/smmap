@@ -27,7 +27,7 @@ class WindowCursor:
     that it must be suited for the somewhat quite different sliding manager. It could be improved, but
     I see no real need to do so."""
     __slots__ = (
-        '_manager',  # the manger keeping all file regions
+        '_manager',  # the manager keeping all file regions
         '_rlist',   # a regions list with regions for our file
         '_region',  # our current class:`MapRegion` or None
         '_ofs',     # relative offset from the actually mapped area to our start area
@@ -66,7 +66,7 @@ class WindowCursor:
                 # sometimes, during shutdown, getrefcount is None. Its possible
                 # to re-import it, however, its probably better to just ignore
                 # this python problem (for now).
-                # The next step is to get rid of the error prone getrefcount alltogether.
+                # The next step is to get rid of the error prone getrefcount altogether.
                 pass
             # END exception handling
         # END handle regions
@@ -95,7 +95,7 @@ class WindowCursor:
     #{ Interface
     def assign(self, rhs):
         """Assign rhs to this instance. This is required in order to get a real copy.
-        Alternativly, you can copy an existing instance using the copy module"""
+        Alternatively, you can copy an existing instance using the copy module"""
         self._destroy()
         self._copy_from(rhs)
 
@@ -342,7 +342,7 @@ class StaticWindowMapManager:
         return num_found
 
     def _obtain_region(self, a, offset, size, flags, is_recursive):
-        """Utilty to create a new region - for more information on the parameters,
+        """Utility to create a new region - for more information on the parameters,
         see MapCursor.use_region.
         :param a: A regions (a)rray
         :return: The newly created region"""
@@ -427,7 +427,7 @@ class StaticWindowMapManager:
         return self._memory_size
 
     def max_file_handles(self):
-        """:return: maximium amount of handles we may have opened"""
+        """:return: maximum amount of handles we may have opened"""
         return self._max_handle_count
 
     def max_mapped_memory_size(self):

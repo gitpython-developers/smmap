@@ -21,7 +21,7 @@ class SlidingWindowMapBuffer:
     )
 
     def __init__(self, cursor=None, offset=0, size=sys.maxsize, flags=0):
-        """Initalize the instance to operate on the given cursor.
+        """Initialize the instance to operate on the given cursor.
         :param cursor: if not None, the associated cursor to the file you want to access
             If None, you have call begin_access before using the buffer and provide a cursor
         :param offset: absolute offset in bytes
