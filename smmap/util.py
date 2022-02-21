@@ -71,7 +71,7 @@ class MapWindow:
         rofs = self.ofs - window.ofs_end()
         nsize = rofs + self.size
         rofs -= nsize - min(nsize, max_size)
-        self.ofs = self.ofs - rofs
+        self.ofs -= rofs
         self.size += rofs
 
     def extend_right_to(self, window, max_size):
