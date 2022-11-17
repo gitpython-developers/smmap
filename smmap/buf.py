@@ -93,7 +93,7 @@ class SlidingWindowMapBuffer:
                     d = d.tobytes()
                 md.append(d)
             # END while there are bytes to read
-            return bytes().join(md)
+            return b''.join(md)
         # END fast or slow path
     #{ Interface
 
