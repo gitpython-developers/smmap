@@ -1,49 +1,12 @@
-.PHONY: build sdist cover test clean-files clean-docs doc all  
+.PHONY: all clean release force_release
 
 all:
-	$(info Possible targets:)
-	$(info doc)
-	$(info clean-docs)
-	$(info clean-files)
-	$(info clean)
-	$(info test)
-	$(info coverage)
-	$(info build)
-	$(info sdist)
+	@grep -Ee '^[a-z].*:' Makefile | cut -d: -f1 | grep -vF all
 
-doc:
-	cd doc && make html
+clean:
+	rm -rf build/ dist/ .eggs/ .tox/
 
-clean-docs:
-	cd doc && make clean
-
-clean-files:
-	git clean -fx
-	rm -rf build/ dist/
-
-clean: clean-files clean-docs
-
-test:
-	pytest
-
-coverage:
-	pytest --cov smmap --cov-report xml
-
-build:
-	./setup.py build
-	
-sdist:
-	./setup.py sdist
-
-release: clean
-	# Check if latest tag is the current head we're releasing
-	echo "Latest tag = $$(git tag | sort -nr | head -n1)"
-	echo "HEAD SHA       = $$(git rev-parse head)"
-	echo "Latest tag SHA = $$(git tag | sort -nr | head -n1 | xargs git rev-parse)"
-	@test "$$(git rev-parse head)" = "$$(git tag | sort -nr | head -n1 | xargs git rev-parse)"
-	make force_release
-
-force_release:: clean
-	git push --tags
-	python3 setup.py sdist bdist_wheel
+force_release: clean
+	./build-release.sh
 	twine upload dist/*
+	git push --tags origin main
