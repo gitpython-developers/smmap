@@ -3,6 +3,13 @@ Changelog
 #########
 
 ******
+v6.0.0
+******
+
+- Dropped support 3.6 and 3.7
+- Declared support for Python 3.11 and 3.12
+
+******
 v5.0.0
 ******
 
