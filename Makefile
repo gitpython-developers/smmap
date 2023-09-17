@@ -9,4 +9,4 @@ clean:
 force_release: clean
 	./build-release.sh
 	twine upload dist/*
-	git push --tags origin main
+	git push --tags origin master
