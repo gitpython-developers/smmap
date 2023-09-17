@@ -3,8 +3,16 @@ Changelog
 #########
 
 ******
+v5.0.1
+******
+
+- Added support for Python 3.12
+
+******
 v6.0.0
 ******
+
+YANKED
 
 - Dropped support 3.6 and 3.7
 - Declared support for Python 3.11 and 3.12
