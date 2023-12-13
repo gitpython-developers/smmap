@@ -18,12 +18,12 @@ class FileCreator:
     def __init__(self, size, prefix=''):
         assert size, "Require size to be larger 0"
 
-        self._path = tempfile.mktemp(prefix=prefix)
         self._size = size
 
-        with open(self._path, "wb") as fp:
-            fp.seek(size - 1)
-            fp.write(b'1')
+        with tempfile.NamedTemporaryFile("wb", prefix=prefix, delete=False) as file:
+            self._path = file.name
+            file.seek(size - 1)
+            file.write(b'1')
 
         assert os.path.getsize(self.path) == size
 
