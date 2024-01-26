@@ -23,7 +23,7 @@ setup(
     author_email=smmap.__contact__,
     url=smmap.__homepage__,
     platforms=["any"],
-    license="BSD",
+    license="BSD-3-Clause",
     packages=find_packages(),
     zip_safe=True,
     python_requires=">=3.7",
