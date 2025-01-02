@@ -3,6 +3,12 @@ Changelog
 #########
 
 ******
+v5.0.2
+******
+
+- remove a usage of mktemp
+
+******
 v5.0.1
 ******
 
