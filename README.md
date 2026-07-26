@@ -1,3 +1,8 @@
+## Archive Notice
+
+The entire history of this repository is now contained in https://github.com/gitpython-developers/GitPython, where it is now maintained.
+For issues, please use its issue tracker as well.
+
 ## Motivation
 
 When reading from many possibly large files in a fashion similar to random access, it is usually the fastest and most efficient to use memory maps.
